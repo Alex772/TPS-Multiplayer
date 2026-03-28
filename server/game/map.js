@@ -1,3 +1,4 @@
+//server\game\map.js
 // ============================
 // MAPA (CAMADAS)
 // ============================
@@ -117,16 +118,12 @@ initMapFromJSON();
 // ============================
 
 // Usado para jogadores e outras coisas que sempre colidem com objetos de camada 2
-function isWall(x, y, p = null) {
+function isWall(x, y) {
     let tx = Math.floor(x);
     let ty = Math.floor(y);
 
 
 
-    // Ignora a colisão se o jogador estiver morto
-    if (p.spectador) {
-        return false;
-    }
 
 
     if (tx < 0 || ty < 0 || tx >= MAP_WIDTH || ty >= MAP_HEIGHT) {

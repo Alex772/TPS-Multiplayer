@@ -1,4 +1,9 @@
+//server\server.js
 const { Server } = require("socket.io");
+
+
+
+
 
 const io = new Server(3000, {
     cors: { origin: "*" }
@@ -19,23 +24,58 @@ io.on("connection", (socket) => {
 
     socket.emit("init", {
         id: socket.id,
-        players,
+        players: structuredClone(players),
         map: layers
     });
 
+    // 🔥 atualiza todos quando alguém entra
+    io.emit("state", { players, bullets });
+
     socket.on("input", (data) => {
-        if (!players[socket.id]) return;
+        const player = players[socket.id];
+        if (!player) return;
 
-        players[socket.id].vx = data.vx;
-        players[socket.id].vy = data.vy;
+        const now = Date.now();
+
+        if (now - player.lastInput < 16) return;
+        player.lastInput = now;
+
+        player.input = {
+            up: !!data.up,
+            down: !!data.down,
+            left: !!data.left,
+            right: !!data.right
+        };
     });
-
+    
     socket.on("shoot", (data) => {
-        handleShoot(socket.id, data);
+        const player = players[socket.id];
+        if (!player) return;
+
+        const now = Date.now();
+
+        // deixa só validação básica
+        let dx = Number(data.dx);
+        let dy = Number(data.dy);
+
+        if (!isFinite(dx) || !isFinite(dy)) return;
+
+        const len = Math.hypot(dx, dy);
+        if (len === 0) return;
+
+        dx /= len;
+        dy /= len;
+
+        // 🔥 deixa o handleShoot cuidar do fireRate
+        handleShoot(socket.id, { dx, dy });
+
+        
     });
 
     socket.on("disconnect", () => {
         removePlayer(socket.id);
+
+        io.emit("state", { players, bullets });
     });
 });
 

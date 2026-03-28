@@ -1,10 +1,11 @@
+//client\render.js
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-function render(state, myId) {
+export function render(state, myId) {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -106,3 +107,5 @@ function render(state, myId) {
         }
     }
 }
+
+

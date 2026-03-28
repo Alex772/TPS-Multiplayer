@@ -1,17 +1,17 @@
-// items.js
+// server/game/items.js
 
-export const ITEMS = {
+const ITEMS = {
   pistol: {
     id: "pistol",
     name: "Pistola",
     type: "weapon",
 
     damage: 10,
-    fireRate: 400, // ms entre tiros
+    fireRate: 400,
     ammoType: "light",
 
-    maxAmmo: 12, // no pente
-    reloadTime: 1000, // ms
+    maxAmmo: 12,
+    reloadTime: 1000,
 
     sprite: "pistol.png"
   },
@@ -35,7 +35,8 @@ export const ITEMS = {
     id: "ammo_light",
     name: "Munição leve",
     type: "ammo",
-
     amount: 20
   }
 };
+
+module.exports = { ITEMS };

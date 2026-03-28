@@ -1,3 +1,4 @@
+//server\game\collision.js
 function checkHit(bullet, player) {
     let dx = bullet.x - player.x;
     let dy = bullet.y - player.y;

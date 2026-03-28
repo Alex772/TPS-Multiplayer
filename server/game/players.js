@@ -1,26 +1,46 @@
+
+const { layers  } = require("./map");
 const players = {};
 
-function createPlayer(id) {
+
+
+function getSpawn() {
+    while (true) {
+        let x = Math.floor(Math.random() * layers.collision[0].length);
+        let y = Math.floor(Math.random() * layers.collision.length);
+        if (layers.collision[y][x] === 0 && layers.interactive[y][x] === 0) {
+            return { x, y };
+        }
+
+    }
+}
+
+function addPlayer(id) {
+    const spawn = getSpawn();
+
     players[id] = {
         id,
+        x: spawn.x,
+        y: spawn.y,
+        hp: 100,
 
-        x: 2,
-        y: 2,
+        input: {},
+        lastInput: 0,
+        lastShot: 0,
 
-        vx: 0,
-        vy: 0,
-
-        // 👇 NOVO SISTEMA
         weapon: "pistol",
-        ammo: {
-            light: 60
-        },
-
         ammoInMag: 12,
-        spectador: false,
 
-        lastShot: 0 // controle de fireRate
+        espectador: false
     };
 }
 
-module.exports = { players, createPlayer };
+function removePlayer(id) {
+    delete players[id];
+}
+
+module.exports = {
+    players,
+    addPlayer,
+    removePlayer
+};
