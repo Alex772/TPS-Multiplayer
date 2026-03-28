@@ -79,7 +79,15 @@ export function interpolate() {
             local.y += (server.y - local.y) * lerp;
         }
     }
+    // copia flags rápidas
+    for (let id in window.serverState.players) {
+        const server = window.serverState.players[id];
+        const local = window.state.players[id];
 
+        if (!local) continue;
+
+        local.hit = server.hit;
+    }
     // remover players
     for (let id in window.state.players) {
         if (!window.serverState.players[id]) {

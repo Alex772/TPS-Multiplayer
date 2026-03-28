@@ -16,15 +16,20 @@ export function applyLocalMovement() {
     if (keys.a) dx -= 1;
     if (keys.d) dx += 1;
 
-    // 🔥 mesma normalização do servidor
     const len = Math.hypot(dx, dy);
     if (len > 0) {
         dx /= len;
         dy /= len;
     }
 
-    // 🔥 mesma lógica do servidor
-    moveWithCollision(p, dx * SPEED, dy * SPEED);
+    if (p.hp > 0) {
+        // jogador vivo → aplica colisão normal
+        moveWithCollision(p, dx * SPEED, dy * SPEED);
+    } else {
+        // jogador morto → modo fantasma: movimento livre, sem colisão
+        p.x += dx * SPEED;
+        p.y += dy * SPEED;
+    }
 }
 
 
@@ -59,10 +64,10 @@ window.addEventListener("keyup", (e) => {
 
 // TIRO
 window.addEventListener("mousedown", (e) => {
-    //console.log("🖱️ clique detectado"); // 👈 TESTE
+    const p = getMyPlayer();
+    if (!p || p.hp <= 0) return; // 🔥 não atira se morto
 
     const rect = document.getElementById("game").getBoundingClientRect();
-
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
@@ -71,21 +76,22 @@ window.addEventListener("mousedown", (e) => {
 
     let dx = mouseX - centerX;
     let dy = mouseY - centerY;
-
     const len = Math.hypot(dx, dy);
-
     if (len > 0) {
         dx /= len;
         dy /= len;
     }
 
-    //console.log("📤 enviando shoot", dx, dy); // 👈 TESTE
-
     socket.emit("shoot", { dx, dy });
 });
 
 
-
+window.addEventListener("keydown", (e) => {
+    if (e.key.toLowerCase() === "r") {
+        console.log("🔄 pedido de reload");
+        socket.emit("reload");
+    }
+});
 
 // ============================
 // ENVIO PARA O SERVIDOR

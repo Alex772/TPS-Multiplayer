@@ -1,40 +1,52 @@
 const { players } = require("./players");
-const { ITEMS } = require("./items");
 
 let bullets = [];
 
 function handleShoot(id, data) {
-    let p = players[id];
+    const p = players[id];
     if (!p) return;
-
-    const weapon = ITEMS[p.weapon];
-    if (!weapon) return;
 
     const now = Date.now();
 
-    if (now - p.lastShot < weapon.fireRate) return;
-
-    p.lastShot = now; // 👈 AQUI SIM
 
 
 
-
-    console.log("ammo:", p.ammoInMag);
     
+    const SPREAD = 0.05;
+
+    let dx = data.dx + (Math.random() - 0.5) * SPREAD;
+    let dy = data.dy + (Math.random() - 0.5) * SPREAD;
+
+    const len = Math.hypot(dx, dy);
+    dx /= len;
+    dy /= len;
+
+
+
+
+
+    // 🔥 BLOQUEIA DURANTE RELOAD
+    if (p.reloading) return;
+
+    // 🔥 FIRE RATE
+    const FIRE_RATE = 200;
+    if (now - p.lastShot < FIRE_RATE) return;
+
+    // 🔥 SEM MUNIÇÃO
     if (p.ammoInMag <= 0) return;
 
+    p.lastShot = now;
     p.ammoInMag--;
 
     bullets.push({
         x: p.x,
         y: p.y,
-        dx: data.dx,
-        dy: data.dy,
+        dx: dx,
+        dy: dy,
         life: 100,
-        owner: id
+        owner: id,
+        damage: 20
     });
-
-    console.log("🔥 bala criada");
 }
 
 module.exports = { bullets, handleShoot };

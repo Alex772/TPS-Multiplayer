@@ -46,12 +46,14 @@ io.on("connection", (socket) => {
             left: !!data.left,
             right: !!data.right
         };
+        
     });
     
     socket.on("shoot", (data) => {
         const player = players[socket.id];
-        if (!player) return;
 
+        if (!player || player.hp <= 0) return; // 🔥 não atira se morto
+        
         const now = Date.now();
 
         // deixa só validação básica
@@ -77,6 +79,27 @@ io.on("connection", (socket) => {
 
         io.emit("state", { players, bullets });
     });
+
+    socket.on("reload", () => {
+        const p = players[socket.id];
+        if (!p) return;
+
+        if (p.reloading) return;
+        if (p.ammoInMag === 12) return;
+
+        p.reloading = true;
+
+        console.log("🔄 recarregando...");
+
+        setTimeout(() => {
+            p.ammoInMag = 12;
+            p.reloading = false;
+
+            console.log("✅ reload completo");
+        }, 1500);
+    });
+
+
 });
 
 // inicia loop

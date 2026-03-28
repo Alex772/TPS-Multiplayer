@@ -84,7 +84,9 @@ export function render(state, myId) {
         ctx.fillStyle = id === myId ? "blue" : "red";
         
         const size = 10;
-
+        if (p.hp <= 0) {
+            ctx.globalAlpha = 0.5; // meio transparente
+        }
         // 🔥 desenha centralizado
         ctx.fillRect(
             x - size / 2,
@@ -92,6 +94,7 @@ export function render(state, myId) {
             size,
             size
         );
+        ctx.globalAlpha = 1;    // volta ao normal
     }
 
     // bullets
@@ -109,3 +112,45 @@ export function render(state, myId) {
 }
 
 
+// ========================
+// HITMARKER
+// ========================
+const me = state.players[myId];
+
+if (me && me.hit) {
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 2;
+
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+
+    ctx.beginPath();
+    ctx.moveTo(cx - 10, cy - 10);
+    ctx.lineTo(cx + 10, cy + 10);
+
+    ctx.moveTo(cx + 10, cy - 10);
+    ctx.lineTo(cx - 10, cy + 10);
+
+    ctx.stroke();
+
+    // reset (IMPORTANTE)
+    me.hit = false;
+}
+
+
+// ========================
+// HUD
+// ========================
+if (me) {
+    ctx.fillStyle = "white";
+    ctx.font = "20px Arial";
+
+    const ammo = me.ammoInMag ?? 0;
+    const reloading = me.reloading ? " (RELOAD)" : "";
+
+    ctx.fillText(
+        `Ammo: ${ammo}${reloading}`,
+        20,
+        canvas.height - 20
+    );
+}

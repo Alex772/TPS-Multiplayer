@@ -1,6 +1,6 @@
 const { players } = require("./players");
 const { bullets } = require("./bullets");
-const { isWall, tryPickupItem, layers } = require("./map");
+const { isWall, tryPickupItem, layers, MAP_WIDTH, MAP_HEIGHT} = require("./map");
 
 const TICK = 1000 / 60;
 
@@ -14,8 +14,7 @@ function gameLoop(io) {
         // =====================
         for (let id in players) {
             const p = players[id];
-
-            if (p.spectador) continue;
+            
 
             let dx = 0;
             let dy = 0;
@@ -36,12 +35,25 @@ function gameLoop(io) {
             let newX = p.x + dx * SPEED;
             let newY = p.y + dy * SPEED;
 
-            // colisão com mapa
-            if (!isWall(newX, p.y)) p.x = newX;
-            if (!isWall(p.x, newY)) p.y = newY;
+
+            if(p.hp <= 0) {
+
+                //Bloquear Saida do Mapa
+                if (newX < 0 || newX > MAP_WIDTH) return;
+                if (newY < 0 || newY > MAP_HEIGHT) return;
+
+                // fantasma: movimento livre, sem colisão
+                p.x = newX;
+                p.y = newY;
+            } else {
+                // colisão com mapa
+                if (!isWall(newX, p.y)) p.x = newX;
+                if (!isWall(p.x, newY)) p.y = newY;
+
+            }
+            
+            
         }
-
-
 
 
         // =====================
@@ -67,6 +79,9 @@ function gameLoop(io) {
             for (let id in players) {
                 const p = players[id];
 
+                
+
+
                 // não acerta quem atirou
                 if (id === b.owner) continue;
 
@@ -89,6 +104,16 @@ function gameLoop(io) {
                     p.hp -= b.damage;
 
                     console.log("💥 hit em", id, "hp:", p.hp);
+
+
+                    // =========================
+                    // 🔥 HITMARKER (AQUI!)
+                    // =========================
+                    const owner = players[b.owner];
+                    if (owner) {
+                        owner.hit = true;
+                    }
+
 
                     // remove bala
                     bullets.splice(i, 1);
@@ -117,7 +142,10 @@ function gameLoop(io) {
             bullets,
             map: layers
         });
-
+        // limpa flags temporárias
+        for (let id in players) {
+            players[id].hit = false;
+        }
     }, TICK);
 }
 
