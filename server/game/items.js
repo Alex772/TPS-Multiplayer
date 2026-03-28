@@ -35,7 +35,7 @@ const ITEMS = {
     id: "ammo_light",
     name: "Munição leve",
     type: "ammo",
-    amount: 20
+    amount: 90,
   }
 };
 
