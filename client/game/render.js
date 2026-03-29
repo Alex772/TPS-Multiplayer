@@ -21,6 +21,7 @@ export function render(state, myId) {
 
     if (!state.map || typeof state.map !== "object") return;
 
+    //tamanho dos tiles (MAP)
     const TILE_SIZE = 50;
 
     // DESENHAR CAMADAS

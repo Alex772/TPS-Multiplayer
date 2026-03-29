@@ -1,0 +1,30 @@
+body {
+  font-family: Arial;
+  background: #383838;
+  color: rgba(0, 0, 0, 0.692);
+}
+#toolbar {
+  margin-bottom: 10px;
+}
+button,
+select,
+input {
+  margin-right: 5px;
+}
+canvas {
+  background: #111;
+  border: 1px solid #616060;
+  cursor: crosshair;
+}
+.tile-btn {
+  width: 40px;
+  height: 40px;
+  margin: 2px;
+  border: 2px solid transparent;
+}
+.tile-selected {
+  border: 2px solid yellow;
+}
+.layer-toggle {
+  margin-right: 8px;
+}

@@ -1,4 +1,4 @@
-
+//server\game\players.js
 const { layers  } = require("./map");
 const players = {};
 
@@ -30,7 +30,7 @@ function addPlayer(id) {
 
         weapon: "pistol",
         ammoInMag: 12,
-
+        lastProcessedInput: 0,// Ultima vez que processou um input
         espectador: false
     };
 }

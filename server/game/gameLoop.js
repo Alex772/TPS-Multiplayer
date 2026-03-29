@@ -1,20 +1,43 @@
+//server/game/gameLoop.js
+
 const { players } = require("./players");
 const { bullets } = require("./bullets");
-const { isWall, tryPickupItem, layers, MAP_WIDTH, MAP_HEIGHT, isBulletBlocked} = require("./map");
+const { saveSnapshot } = require("./snapshots");
+
+const { 
+    isWall, 
+    tryPickupItem, 
+    layers, 
+    MAP_WIDTH, 
+    MAP_HEIGHT, 
+    isBulletBlocked 
+} = require("./map");
 
 const TICK = 1000 / 60;
 
-function gameLoop(io) {
+const SPEED = 0.05;
+const BULLET_SPEED = 0.2;
+
+// quantidade de subdivisões
+// n passa de 8 por garantia de pode causa lag
+const BULLET_STEPS = 1;
+
+function gameLoop(io, buildState) {
 
     setInterval(() => {
 
+        // =====================
+        // 📸 SALVA HISTÓRICO
+        // =====================
+        saveSnapshot(players);
 
         // =====================
-        // MOVE PLAYERS
+        // MOVE PLAYERS (NORMAL)
         // =====================
         for (let id in players) {
+
             const p = players[id];
-            
+            if (!p || !p.input) continue;
 
             let dx = 0;
             let dy = 0;
@@ -30,129 +53,135 @@ function gameLoop(io) {
                 dy /= len;
             }
 
-            const SPEED = 0.05;
-
             let newX = p.x + dx * SPEED;
             let newY = p.y + dy * SPEED;
 
+            // morto (fantasma)
+            if (p.hp <= 0) {
 
-            if(p.hp <= 0) {
+                if (newX >= 0 && newX <= MAP_WIDTH) {
+                    p.x = newX;
+                }
 
-                //Bloquear Saida do Mapa
-                if (newX < 0 || newX > MAP_WIDTH) return;
-                if (newY < 0 || newY > MAP_HEIGHT) return;
+                if (newY >= 0 && newY <= MAP_HEIGHT) {
+                    p.y = newY;
+                }
 
-                // fantasma: movimento livre, sem colisão
-                p.x = newX;
-                p.y = newY;
             } else {
-                // colisão com mapa
+
                 if (!isWall(newX, p.y)) p.x = newX;
                 if (!isWall(p.x, newY)) p.y = newY;
 
+                //tryPickupItem(p);
             }
-            
-            
+
+            // reconciliação
+            if (p.input.seq !== undefined) {
+                p.lastProcessedInput = p.input.seq;
+            }
         }
 
-
         // =====================
-        // MOVE BULLETS + COLISÃO
+        // MOVE BULLETS + COLISÃO (CORRIGIDO)
         // =====================
         for (let i = bullets.length - 1; i >= 0; i--) {
+
             const b = bullets[i];
 
-            const BULLET_SPEED = 0.2;
+            // 🔥 SUBSTEPS (ANTI-TUNNELING)
+            for (let step = 0; step < BULLET_STEPS; step++) {
 
-            b.x += b.dx * BULLET_SPEED;
-            b.y += b.dy * BULLET_SPEED;
+                b.x += b.dx * (BULLET_SPEED / BULLET_STEPS);
+                b.y += b.dy * (BULLET_SPEED / BULLET_STEPS);
 
-            b.life--;
-
-            // 🔥 NOVO: colisão com parede ou objeto (com chance de passar)
-            if (isBulletBlocked(b.x, b.y, b.isOver)) {
-                bullets.splice(i, 1);
-                continue;
-            }
-
-
-            // 🔥 COLISÃO COM MAPA
-            if (isWall(b.x, b.y)) {
-                bullets.splice(i, 1);
-                continue;
-            }
-
-            // 🔥 COLISÃO COM PLAYERS
-            for (let id in players) {
-                const p = players[id];
-
-                
-
-
-                // não acerta quem atirou
-                if (id === b.owner) continue;
-
-                // ignora espectador
-                if (p.spectador) continue;
-
-                // ignora morto
-                if (p.hp <= 0) continue;
-
-                const dx = p.x - b.x;
-                const dy = p.y - b.y;
-
-                const dist = Math.hypot(dx, dy);
-
-                const HIT_RADIUS = 0.4;
-
-                if (dist < HIT_RADIUS) {
-
-                    // 💥 dano
-                    p.hp -= b.damage;
-
-                    console.log("💥 hit em", id, "hp:", p.hp);
-
-
-                    // =========================
-                    // 🔥 HITMARKER (AQUI!)
-                    // =========================
-                    const owner = players[b.owner];
-                    if (owner) {
-                        owner.hit = true;
-                    }
-
-
-                    // remove bala
+                // =====================
+                // COLISÃO ESPECIAL
+                // =====================
+                if (isBulletBlocked(b.x, b.y, b.isOver)) {
                     bullets.splice(i, 1);
-
-                    // morreu?
-                    if (p.hp <= 0) {
-                        p.spectador = true;
-                        console.log("☠️ jogador morreu:", id);
-                    }
-
                     break;
                 }
+
+                // =====================
+                // PAREDE
+                // =====================
+                if (isWall(b.x, b.y)) {
+
+                    // 🔥 opcional: volta um passo pra não grudar
+                    b.x -= b.dx * (BULLET_SPEED / BULLET_STEPS);
+                    b.y -= b.dy * (BULLET_SPEED / BULLET_STEPS);
+
+                    bullets.splice(i, 1);
+                    break;
+                }
+
+                // =====================
+                // COLISÃO COM PLAYERS (LAG COMP)
+                // =====================
+                for (let id in players) {
+
+                    const realPlayer = players[id];
+                    const snapshotPlayer = b.snapshotPlayers?.[id] || realPlayer;
+
+                    if (!realPlayer || !snapshotPlayer) continue;
+                    if (id === b.owner) continue;
+                    if (realPlayer.spectador) continue;
+                    if (realPlayer.hp <= 0) continue;
+
+                    const dx = snapshotPlayer.x - b.x;
+                    const dy = snapshotPlayer.y - b.y;
+
+                    const dist = Math.hypot(dx, dy);
+
+                    const HIT_RADIUS = 0.4;
+
+                    if (dist < HIT_RADIUS) {
+
+                        // aplica no real
+                        realPlayer.hp -= b.damage;
+
+                        console.log("💥 hit em", id, "hp:", realPlayer.hp);
+
+                        const owner = players[b.owner];
+                        if (owner) owner.hit = true;
+
+                        bullets.splice(i, 1);
+
+                        if (realPlayer.hp <= 0) {
+                            realPlayer.spectador = true;
+                            console.log("☠️ jogador morreu:", id);
+                        }
+
+                        break;
+                    }
+                }
+
+                // se bala já foi removida, sai do loop
+                if (!bullets[i]) break;
             }
 
-            // remove por tempo
-            if (b.life <= 0) {
-                bullets.splice(i, 1);
+            // tempo de vida
+            if (bullets[i]) {
+                bullets[i].life--;
+
+                if (bullets[i].life <= 0) {
+                    bullets.splice(i, 1);
+                }
             }
         }
 
         // =====================
         // ENVIA ESTADO
         // =====================
-        io.emit("state", {
-            players,
-            bullets,
-            map: layers
-        });
-        // limpa flags temporárias
+        io.emit("state", buildState());
+
+        // limpa flags
         for (let id in players) {
-            players[id].hit = false;
+            if (players[id]) {
+                players[id].hit = false;
+            }
         }
+
     }, TICK);
 }
 
