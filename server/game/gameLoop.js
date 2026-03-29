@@ -1,6 +1,6 @@
 const { players } = require("./players");
 const { bullets } = require("./bullets");
-const { isWall, tryPickupItem, layers, MAP_WIDTH, MAP_HEIGHT} = require("./map");
+const { isWall, tryPickupItem, layers, MAP_WIDTH, MAP_HEIGHT, isBulletBlocked} = require("./map");
 
 const TICK = 1000 / 60;
 
@@ -68,6 +68,13 @@ function gameLoop(io) {
             b.y += b.dy * BULLET_SPEED;
 
             b.life--;
+
+            // 🔥 NOVO: colisão com parede ou objeto (com chance de passar)
+            if (isBulletBlocked(b.x, b.y, b.isOver)) {
+                bullets.splice(i, 1);
+                continue;
+            }
+
 
             // 🔥 COLISÃO COM MAPA
             if (isWall(b.x, b.y)) {
