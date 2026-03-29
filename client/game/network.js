@@ -1,7 +1,8 @@
 //client\network.js
-const SERVER_URL = "http://localhost:3000";
 
-export const socket = io(SERVER_URL);
+
+
+export const socket = io("http://localhost:3000");
 
 // 🔥 estado LOCAL (não substituído toda hora)
 window.state = {

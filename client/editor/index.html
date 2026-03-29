@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Editor de Mapas PRO+</title>
+<style>
+body { font-family: Arial; background:#383838; color:rgba(0, 0, 0, 0.692); }
+#toolbar { margin-bottom:10px; }
+button, select, input { margin-right:5px; }
+canvas { background:#111; border:1px solid #555; cursor: crosshair; }
+.tile-btn { width:40px; height:40px; margin:2px; border:2px solid transparent; }
+.tile-selected { border:2px solid yellow; }
+.layer-toggle { margin-right:8px; }
+</style>
+</head>
+<body>
+
+<h2>Editor de Mapa PRO+</h2>
+
+<div id="toolbar">
+    Largura: <input type="number" id="mapWidth" value="10" min="5" max="200">
+    Altura: <input type="number" id="mapHeight" value="10" min="5" max="200">
+    <button onclick="resizeMap()">Redimensionar</button>
+
+    Camada:
+    <select id="layerSelect">
+        <option value="collision">Collision</option>
+        <option value="interactive">Interactive</option>
+        <option value="items">Items</option>
+    </select>
+
+    <button onclick="exportMap()">Exportar</button>
+    <button onclick="clearMap()">Limpar</button>
+    <input type="file" id="fileInput" />
+</div>
+
+<div>
+    <label class="layer-toggle"><input type="checkbox" id="showCollision" checked> Collision</label>
+    <label class="layer-toggle"><input type="checkbox" id="showInteractive" checked> Interactive</label>
+    <label class="layer-toggle"><input type="checkbox" id="showItems" checked> Items</label>
+</div>
+
+<div id="palette"></div>
+
+<canvas id="canvas" width="800" height="600"></canvas>
+
+<script type="module" src="editor.js"></script>
+
+</body>
+</html>
