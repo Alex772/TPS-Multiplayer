@@ -1,300 +1,316 @@
-📘 Documentação Geral — TPS Multiplayer 2D
-📌 Visão Geral
+# 🎮 TPS Multiplayer 2D
 
-Este projeto é um jogo multiplayer 2D com arquitetura cliente-servidor, onde:
+> Jogo multiplayer 2D com arquitetura cliente-servidor, foco em performance, predição e sincronização em tempo real.
 
-O cliente é responsável por renderização, input e predição
-O servidor é autoritativo (estado real do jogo)
-Existe separação clara entre:
-Lobby (menu / salas)
-Gameplay (jogo em si)
-Ferramentas (editor)
-🧱 Estrutura Geral do Projeto
+---
+
+## 🚀 Status do Projeto
+
+![status](https://img.shields.io/badge/status-em%20desenvolvimento-yellow)
+![node](https://img.shields.io/badge/node-%3E%3D18-green)
+![socket.io](https://img.shields.io/badge/socket.io-4.x-black)
+![license](https://img.shields.io/badge/license-MIT-blue)
+
+---
+
+## 📌 Visão Geral
+
+Este projeto implementa um sistema multiplayer com:
+
+* 🔵 Cliente com predição e interpolação
+* 🔴 Servidor autoritativo
+* 🧩 Separação entre lobby, gameplay e ferramentas
+
+### Estrutura lógica:
+
+```
+Lobby → Sala → Gameplay → Sincronização
+```
+
+---
+
+## 🧱 Estrutura do Projeto
+
+```
 TPS-Multiplayer/
-├── client/ # Frontend (jogador)
-├── server/ # Backend (autoridade do jogo)
-└── My/ # Documentação e modelos
-🎮 CLIENT (Frontend)
+├── client/     # Frontend (jogador)
+├── server/     # Backend (autoridade do jogo)
+└── My/         # Documentação e modelos
+```
+
+---
+
+# 🎮 Client (Frontend)
 
 Responsável por:
 
-Interface (UI)
-Entrada do jogador (input)
-Renderização (canvas)
-Comunicação com servidor
-Predição/interpolação
-📁 Estrutura do Client
+* Interface (UI)
+* Input do jogador
+* Renderização (Canvas)
+* Predição e interpolação
+* Comunicação com servidor
+
+---
+
+## 📁 Estrutura
+
+```
 client/
-├── index.html # Lobby principal (login + salas)
-│
-├── lobby/ # Sistema de lobby
-│ ├── lobby.js # Lógica principal (salas, login)
-│ ├── ui.js # Manipulação de DOM
-│ └── api.js # Comunicação com servidor
-│
-├── game/ # Jogo em si
-│ ├── index.html # Canvas + HUD
-│ ├── game.js # Loop principal (rAF)
-│ ├── network.js # Sincronização com servidor
-│ ├── input.js # Teclado e mouse
-│ ├── collision.js # Colisão local
-│ ├── render.js # Renderização
-│ └── hud.js # Interface do jogador
-│
-├── editor/ # Ferramenta privada
-│ ├── index.html
-│ └── editor.js
-│
-├── assets/ # Recursos do jogo
-│ ├── sprites/
-│ ├── maps/
-│ └── sounds/
-│
+├── index.html          # Lobby (login + salas)
+
+├── lobby/              # Sistema de lobby
+│   ├── lobby.js
+│   ├── ui.js
+│   └── api.js
+
+├── game/               # Jogo
+│   ├── game.html
+│   ├── game.js
+│   ├── network.js
+│   ├── input.js
+│   ├── collision.js
+│   ├── render.js
+│   └── hud.js
+
+├── editor/             # Editor de mapas (privado)
+│   ├── editor.html
+│   └── editor.js
+
+├── assets/
 └── styles/
-├── main.css
-├── lobby.css
-└── game.css
-🔷 index.html (Lobby)
-Responsabilidade:
-Entrada do jogador
-Criar / entrar em salas
-Fluxo:
-Login → Lista de salas → Criar/Entrar → Redirecionar para game
-🔷 lobby/
-lobby.js
+```
 
-Controla:
+---
 
+## 🔷 Fluxo do Cliente
+
+```
 Login
-Criação de salas
-Entrada em salas
-Eventos socket
-ui.js
+ ↓
+Lista de salas
+ ↓
+Entrar/Criar sala
+ ↓
+Redirecionamento
+ ↓
+Game loop (render + network)
+```
+
+---
+
+# 🧠 Server (Backend)
 
 Responsável por:
 
-Atualizar DOM
-Criar botões dinamicamente
-Exibir listas
-api.js
+* Estado real do jogo
+* Validação de ações
+* Física e colisão
+* Sincronização multiplayer
 
-Centraliza:
+---
 
-Comunicação com backend
-Emissão de eventos (socket)
-🔷 game/
-game.html
+## 📁 Estrutura
 
-Contém:
-
-Canvas
-Scripts do jogo
-HUD
-game.js
-
-Loop principal:
-
-requestAnimationFrame(loop)
-
-loop:
-→ processInput()
-→ updatePrediction()
-→ interpolate()
-→ render()
-network.js
-
-Responsável por:
-
-Conexão com servidor
-Receber estado (players, bullets)
-Buffer de estados
-Interpolação
-input.js
-
-Captura:
-
-Teclado (WASD)
-Mouse (mira e tiro)
-
-Envia input a cada ~20Hz
-
-render.js
-
-Desenha:
-
-Mapa (layers)
-Jogadores
-Balas
-HUD
-collision.js
-Verifica colisão com mapa
-Usa AABB (Axis-Aligned Bounding Box)
-hud.js
-
-Mostra:
-
-Vida
-Arma atual
-Munição
-Pontuação
-🔷 editor/
-
-Ferramenta isolada para:
-
-Criar mapas
-Editar tiles
-Exportar JSON
-
-⚠️ Não faz parte do jogo em produção
-
-🧠 SERVER (Backend)
-
-Responsável por:
-
-Estado real do jogo
-Validação de ações
-Física e colisão
-Sincronização multiplayer
-📁 Estrutura do Server
+```
 server/
-├── server.js # Entrada principal
-│
+├── server.js
+
 ├── game/
-│ ├── gameLoop.js # Loop 60Hz
-│ ├── players.js # Gerenciamento de jogadores
-│ ├── bullets.js # Sistema de tiros
-│ ├── map.js # Carregamento de mapa
-│ ├── collision.js # Detecção de hit
-│ ├── items.js # Armas e itens
-│ ├── reload.js # Recarregar armas
-│ ├── inventory.js # Inventário
-│ └── maps/ # Mapas JSON
-│
+│   ├── gameLoop.js
+│   ├── players.js
+│   ├── bullets.js
+│   ├── map.js
+│   ├── collision.js
+│   ├── items.js
+│   ├── reload.js
+│   ├── inventory.js
+│   └── maps/
+
 ├── database/
-│ └── db.js # Configuração MongoDB
-│
+│   └── db.js
+
 └── package.json
-🔷 server.js
+```
 
-Responsável por:
+---
 
-Criar servidor HTTP + Socket.IO
-Gerenciar conexões
-Eventos:
-login
-createRoom
-joinRoom
-input
-🔷 gameLoop.js
+## 🔁 Game Loop (Servidor)
 
-Executa a cada 60 FPS:
+Executado a **60Hz**
 
+```
 → mover jogadores
 → atualizar balas
 → detectar colisões
-→ enviar estado para clientes
-🔷 players.js
+→ enviar estado
+```
 
-Gerencia:
+---
 
-Criação de jogador
-Spawn
-Remoção
-🔷 bullets.js
-
-Responsável por:
-
-Criar balas
-Controlar fire rate
-Atualizar posição
-🔷 map.js
-
-Carrega:
-
-Arquivos JSON
-Grid de tiles
-3 camadas (background, colisão, overlay)
-🔷 collision.js
-
-Detecta:
-
-Tiro acertando jogador
-Distância entre entidades
-🔷 inventory.js
-
-Controla:
-
-Armas do jogador
-Munição
-Troca de armas
-🔷 reload.js
-
-Lógica de recarga:
-
-reserve → magazine
-🔷 items.js
-
-Define:
-
-Pistola
-Rifle
-Tipos de munição
-🧠 SISTEMA DE SALAS (Rooms)
+# 🌐 Sistema de Salas
 
 Cada jogador pertence a uma sala:
 
-socket.join(roomId)
-Fluxo:
-Cliente:
-cria/entra sala
+```js
+socket.join(roomId);
+```
+
+### Fluxo:
+
+```
+Cliente cria/entra sala
+Servidor associa socket
+GameLoop envia estado por sala
+```
+
+### Exemplo:
+
+```js
+io.to(roomId).emit("state", gameState);
+```
+
+---
+
+# 🔄 Fluxo Completo
+
+```
+1. Abre index.html
+2. Login
+3. Cria/entra sala
+4. Redireciona para game
+5. Conecta via Socket.IO
+6. Servidor registra player
+7. Loop começa
+8. Cliente renderiza
+```
+
+---
+
+# 📡 Networking
+
+## Cliente
+
+* Predição local
+* Interpolação
+
+## Servidor
+
+* Autoridade total
+
+### Estratégia
+
+```
+Cliente → envia input
+Servidor → valida
+Servidor → atualiza estado
+Servidor → envia snapshot
+Cliente → interpola
+```
+
+---
+
+# ⚙️ Tecnologias
+
+## Frontend
+
+* HTML5
+* Canvas 2D
+* JavaScript
+
+## Backend
+
+* Node.js
+* Socket.IO
+* MongoDB (Mongoose)
+
+---
+
+# 📦 Padrões Utilizados
+
+* Client-Server Architecture
+* Server Authoritative Model
+* Fixed Tick Rate (60Hz)
+* Separação de responsabilidades
+* Modularização por sistema
+
+---
+
+# 🚀 Como Rodar o Projeto
+
+## 🔧 Server
+
+```bash
+cd server
+npm install
+node server.js
+```
 
 Servidor:
-associa socket à sala
 
-GameLoop:
-envia estado apenas para sala
-Exemplo:
-io.to(roomId).emit("state", gameState);
-🔄 FLUXO COMPLETO DO JOGO
+```
+http://localhost:3000
+```
 
-1. Jogador abre index.html
-2. Faz login
-3. Cria ou entra em sala
-4. Redirecionado para game.html
-5. Cliente conecta com roomId
-6. Servidor adiciona jogador
-7. GameLoop começa a enviar estado
-8. Cliente renderiza jogo
-   📡 SINCRONIZAÇÃO (Networking)
-   Cliente:
-   Predição local
-   Interpolação
-   Servidor:
-   Autoridade total
-   Estratégia:
-   Cliente envia input → Servidor valida → Atualiza estado → Envia snapshot
-   ⚙️ TECNOLOGIAS USADAS
-   Frontend:
-   HTML5
-   Canvas 2D
-   JavaScript
-   Backend:
-   Node.js
-   Socket.IO
-   MongoDB (Mongoose)
-   📦 PADRÕES UTILIZADOS
-   Arquitetura cliente-servidor
-   Server authoritative model
-   Game loop fixo (60Hz)
-   Separação de responsabilidades
-   Modularização por sistema
-   🚀 ESCALABILIDADE (Futuro)
+---
 
-O projeto já suporta expansão para:
+## 🌐 Client
 
-Matchmaking automático
-Sistema de contas
-Ranking (ELO)
-Partidas ranqueadas
-Chat em tempo real
-Skins e customização
+Se estiver usando servidor estático:
+
+```bash
+# exemplo com live-server
+npx live-server client
+```
+
+Ou acesse direto pelo servidor Node (recomendado):
+
+```
+http://localhost:3000
+```
+
+---
+
+# 🧪 Teste do Socket.IO
+
+Abra no navegador:
+
+```
+http://localhost:3000/socket.io/socket.io.js
+```
+
+Se carregar → ✔ OK
+
+---
+
+# 🛠️ Futuras Melhorias
+
+* [ ] Matchmaking automático
+* [ ] Sistema de contas
+* [ ] Ranking (ELO)
+* [ ] Salas privadas
+* [ ] Chat em tempo real
+* [ ] Skins
+
+---
+
+# 📄 Licença
+
+Este projeto está sob a licença MIT.
+
+---
+
+# 👨‍💻 Autor
+
+Desenvolvido como projeto de estudo de multiplayer em tempo real.
+
+---
+
+# ⭐ Contribuição
+
+Sinta-se livre para:
+
+* abrir issues
+* sugerir melhorias
+* contribuir com código
+
+---
