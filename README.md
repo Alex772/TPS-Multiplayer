@@ -12,3 +12,6 @@ Jogo multiplayer em tempo real usando Socket.IO.
 ```bash
 npm install
 npm run dev
+
+
+asdfasdfasdfsafas
