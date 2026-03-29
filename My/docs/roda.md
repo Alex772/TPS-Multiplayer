@@ -1,3 +1,6 @@
+//start projeto
+
+npm init -y
 
 //Roda Servidor
 
