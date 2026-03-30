@@ -1,3 +1,4 @@
+//server\game\snapshots.js
 // guarda histórico dos players
 const history = [];
 
