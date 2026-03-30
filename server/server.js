@@ -1,4 +1,4 @@
-//server/server.js
+// server/server.js
 
 const { Server } = require("socket.io");
 
@@ -6,25 +6,28 @@ const io = new Server(3000, {
     cors: { origin: "*" }
 });
 
-// módulos
-const { players, addPlayer, removePlayer } = require("./game/players");
+const {
+    players,
+    addPlayer,
+    removePlayer,
+    getCurrentWeapon,
+    switchWeapon
+} = require("./game/players");
+
 const { handleShoot, bullets } = require("./game/bullets");
 const { gameLoop } = require("./game/gameLoop");
 const { layers } = require("./game/map");
+const { getWeapon } = require("./game/weapons");
 
 // ============================
 // CONEXÕES
 // ============================
 
 io.on("connection", (socket) => {
-
     console.log("🟢 Player conectou:", socket.id);
 
     addPlayer(socket.id);
 
-    // =========================
-    // INIT (ENVIO INICIAL)
-    // =========================
     socket.emit("init", {
         id: socket.id,
         players: structuredClone(players),
@@ -35,13 +38,11 @@ io.on("connection", (socket) => {
     // INPUT
     // =========================
     socket.on("input", (data) => {
-
         const player = players[socket.id];
         if (!player) return;
 
         const now = Date.now();
 
-        // 🔥 anti flood (~60 inputs/s)
         if (now - player.lastInput < 16) return;
         player.lastInput = now;
 
@@ -57,27 +58,26 @@ io.on("connection", (socket) => {
     });
 
     // =========================
-    // TIRO (AGORA COM LAG COMP)
+    // TIRO
     // =========================
     socket.on("shoot", (data) => {
-
         const player = players[socket.id];
         if (!player || player.hp <= 0) return;
+        if (player.espectador) return;
 
-        let dx = Number(data.dx);
-        let dy = Number(data.dy);
+        let dx = Number(data?.dx);
+        let dy = Number(data?.dy);
 
         if (!isFinite(dx) || !isFinite(dy)) return;
 
         const len = Math.hypot(dx, dy);
-        if (len === 0) return;
+        if (len <= 0) return;
 
         dx /= len;
         dy /= len;
 
-        // 🔥 NOVO: valida tempo
-        const shotTime = Number(data.time);
-        const ping = Number(data.ping) || 0;
+        const shotTime = Number(data?.time);
+        const ping = Number(data?.ping) || 0;
 
         if (!isFinite(shotTime)) return;
 
@@ -90,40 +90,58 @@ io.on("connection", (socket) => {
     });
 
     // =========================
-    // PING (ESSENCIAL)
+    // RELOAD
+    // =========================
+    socket.on("reload", () => {
+        const p = players[socket.id];
+        if (!p) return;
+        if (p.hp <= 0) return;
+        if (p.espectador) return;
+        if (p.isSwitching) return;
+
+        const weaponState = getCurrentWeapon(p);
+        if (!weaponState) return;
+
+        const weapon = getWeapon(weaponState.weaponId);
+        if (!weapon) return;
+
+        if (weaponState.isReloading) return;
+        if (weaponState.magsLeft <= 0) return;
+        if (weaponState.ammoInMag >= weapon.magSize) return;
+
+        weaponState.isReloading = true;
+        weaponState.reloadEndTime = Date.now() + weapon.reloadTime;
+
+        console.log(`🔄 ${socket.id} recarregando ${weaponState.weaponId}...`);
+    });
+
+    // =========================
+    // TROCA DE ARMA
+    // =========================
+    socket.on("switchWeapon", (data) => {
+        const p = players[socket.id];
+        if (!p) return;
+        if (p.hp <= 0) return;
+        if (p.espectador) return;
+
+        const slot = data?.slot;
+
+        if (slot !== "primary" && slot !== "secondary") return;
+
+        switchWeapon(p, slot);
+    });
+
+    // =========================
+    // PING
     // =========================
     socket.on("pingCheck", (time) => {
         socket.emit("pongCheck", time);
     });
 
     // =========================
-    // RELOAD
-    // =========================
-    socket.on("reload", () => {
-
-        const p = players[socket.id];
-        if (!p) return;
-
-        if (p.reloading) return;
-        if (p.ammoInMag === 12) return;
-
-        p.reloading = true;
-
-        console.log("🔄 recarregando...");
-
-        setTimeout(() => {
-            p.ammoInMag = 12;
-            p.reloading = false;
-
-            console.log("✅ reload completo");
-        }, 1500);
-    });
-
-    // =========================
     // DISCONNECT
     // =========================
     socket.on("disconnect", () => {
-
         console.log("🔴 Player saiu:", socket.id);
 
         removePlayer(socket.id);
@@ -133,11 +151,10 @@ io.on("connection", (socket) => {
 });
 
 // ============================
-// 🔥 FUNÇÃO PADRÃO DE STATE
+// STATE
 // ============================
 
 function buildState() {
-
     const playersToSend = {};
 
     for (let id in players) {
@@ -145,8 +162,6 @@ function buildState() {
 
         playersToSend[id] = {
             ...p,
-
-            // 🔥 ESSENCIAL PRA RECONCILIAÇÃO
             lastProcessedInput: p.lastProcessedInput || 0
         };
     }

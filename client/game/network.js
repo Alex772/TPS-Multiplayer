@@ -1,16 +1,18 @@
-//client\game\network.js
 import { getPendingInputs } from "./input.js";
 
 export const socket = io("http://localhost:3000");
 
-// 🔥 CONFIG GLOBAL
+// ============================
+// CONFIG GLOBAL
+// ============================
+
 const SPEED = 0.05;
 const LERP_OTHER = 0.25;
 const LERP_CORRECTION = 0.15;
 const LERP_BULLET = 0.35;
 
 // ============================
-// ESTADOS
+// ESTADOS GLOBAIS
 // ============================
 
 window.myPing = 0;
@@ -45,12 +47,15 @@ socket.on("init", (data) => {
 
     window.myId = data.id;
 
+    // players completos vindos do servidor
     window.state.players = structuredClone(data.players);
     window.serverState.players = structuredClone(data.players);
 
+    // balas começam vazias
     window.state.bullets = [];
     window.serverState.bullets = [];
 
+    // mapa
     window.state.map = data.map;
 });
 
@@ -59,17 +64,19 @@ socket.on("init", (data) => {
 // ============================
 
 socket.on("state", (data) => {
-
+    // clone seguro dos players
     window.serverState.players = structuredClone(data.players);
 
-    // 🔥 garante ID nas balas
-    window.serverState.bullets = data.bullets.map(b => ({
-        id: b.id, // 🔥 ESSENCIAL
-        x: b.x,
-        y: b.y,
-        dx: b.dx,
-        dy: b.dy
-    }));
+    // clone seguro das balas
+    window.serverState.bullets = Array.isArray(data.bullets)
+        ? data.bullets.map((b) => ({
+              id: b.id,
+              x: b.x,
+              y: b.y,
+              dx: b.dx,
+              dy: b.dy
+          }))
+        : [];
 });
 
 // ============================
@@ -77,7 +84,6 @@ socket.on("state", (data) => {
 // ============================
 
 export function interpolate() {
-
     const me = window.myId;
     if (!me) return;
 
@@ -88,23 +94,27 @@ export function interpolate() {
     // =========================
 
     for (let id in window.serverState.players) {
-
         const server = window.serverState.players[id];
 
+        // novo player
         if (!window.state.players[id]) {
-            window.state.players[id] = { ...server };
+            window.state.players[id] = structuredClone(server);
             continue;
         }
 
         const local = window.state.players[id];
 
+        // =========================
+        // PLAYER LOCAL
+        // =========================
         if (id === me) {
-
+            // correção suave da posição
             local.x += (server.x - local.x) * LERP_CORRECTION;
             local.y += (server.y - local.y) * LERP_CORRECTION;
 
             const lastProcessed = server.lastProcessedInput ?? 0;
 
+            // remove inputs já confirmados pelo servidor
             while (
                 pendingInputs.length > 0 &&
                 pendingInputs[0].seq <= lastProcessed
@@ -112,8 +122,8 @@ export function interpolate() {
                 pendingInputs.shift();
             }
 
+            // reaplica inputs pendentes
             for (let input of pendingInputs) {
-
                 let dx = 0;
                 let dy = 0;
 
@@ -131,27 +141,34 @@ export function interpolate() {
                 local.x += dx * SPEED;
                 local.y += dy * SPEED;
             }
-
-        } else {
-
+        }
+        // =========================
+        // OUTROS PLAYERS
+        // =========================
+        else {
             local.x += (server.x - local.x) * LERP_OTHER;
             local.y += (server.y - local.y) * LERP_OTHER;
         }
 
+        // =========================
+        // DADOS IMPORTANTES DE COMBATE
+        // =========================
+
         local.hp = server.hp;
-        local.angle = server.angle;
-    }
-
-    // =========================
-    // FLAGS
-    // =========================
-
-    for (let id in window.serverState.players) {
-        const server = window.serverState.players[id];
-        const local = window.state.players[id];
-        if (!local) continue;
-
         local.hit = server.hit;
+        local.angle = server.angle;
+        local.espectador = server.espectador;
+
+        // loadout completo
+        local.loadout = structuredClone(server.loadout);
+
+        // estados gerais
+        local.isSwitching = server.isSwitching;
+        local.switchEndTime = server.switchEndTime;
+        local.nextWeapon = server.nextWeapon ?? null;
+
+        // mantemos também lastShot se quiser usar depois
+        local.lastShot = server.lastShot;
     }
 
     // =========================
@@ -165,7 +182,7 @@ export function interpolate() {
     }
 
     // =========================
-    // 🔥 INTERPOLAÇÃO DE BALAS (CORRIGIDO)
+    // BALAS
     // =========================
 
     const serverBullets = window.serverState.bullets;
@@ -174,7 +191,7 @@ export function interpolate() {
     const localMap = new Map();
 
     for (let b of localBullets) {
-        if (b.id !== undefined) {
+        if (b && b.id !== undefined) {
             localMap.set(b.id, b);
         }
     }
@@ -182,20 +199,20 @@ export function interpolate() {
     const newBullets = [];
 
     for (let sb of serverBullets) {
-
-        if (sb.id === undefined) {
-            // fallback seguro (evita crash)
+        if (!sb || sb.id === undefined) {
             newBullets.push({ ...sb });
             continue;
         }
 
         const lb = localMap.get(sb.id);
 
+        // bala nova
         if (!lb) {
             newBullets.push({ ...sb });
             continue;
         }
 
+        // bala existente -> interpola
         lb.x += (sb.x - lb.x) * LERP_BULLET;
         lb.y += (sb.y - lb.y) * LERP_BULLET;
 
@@ -215,6 +232,14 @@ export function interpolate() {
 export function getMyPlayer() {
     if (!window.state || !window.myId) return null;
     return window.state.players[window.myId];
+}
+
+export function getCurrentWeapon() {
+    const p = getMyPlayer();
+    if (!p || !p.loadout) return null;
+
+    const currentSlot = p.loadout.current;
+    return p.loadout[currentSlot] || null;
 }
 
 // ============================

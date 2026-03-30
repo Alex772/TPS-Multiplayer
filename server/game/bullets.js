@@ -1,11 +1,15 @@
-const { players } = require("./players");
+// server/game/bullets.js
+
+const { players, getCurrentWeapon } = require("./players");
+const { getWeapon } = require("./weapons");
 const { getSnapshotAt } = require("./snapshots");
 
 let bullets = [];
 
 // ============================
-// 🔥 ID GLOBAL DE BALAS (SERVER)
+// 🔥 ID GLOBAL
 // ============================
+
 let bulletIdCounter = 0;
 
 function generateBulletId() {
@@ -13,37 +17,115 @@ function generateBulletId() {
 }
 
 // ============================
-// 🔫 CONFIG DE ARMAS
+// 🔧 UTIL
 // ============================
 
-const WEAPONS = {
-    pistol: {
-        range: 600,
-        damage: 20,
-        fireRate: 200,
-        spread: 0.05
-    },
-    rifle: {
-        range: 900,
-        damage: 15,
-        fireRate: 100,
-        spread: 0.03
+function clampRecoil(weaponState, weapon) {
+    weaponState.recoilCurrent += weapon.recoil.perShot;
+
+    if (weaponState.recoilCurrent > weapon.recoil.max) {
+        weaponState.recoilCurrent = weapon.recoil.max;
     }
-};
+}
+
+function applySpread(baseDx, baseDy, weapon, recoilCurrent) {
+    let dx =
+        baseDx +
+        (Math.random() - 0.5) * weapon.spread +
+        (Math.random() - 0.5) * recoilCurrent * weapon.recoilSpreadMultiplier;
+
+    let dy =
+        baseDy +
+        (Math.random() - 0.5) * weapon.spread +
+        (Math.random() - 0.5) * recoilCurrent * weapon.recoilSpreadMultiplier;
+
+    const len = Math.hypot(dx, dy);
+    if (len <= 0) return null;
+
+    dx /= len;
+    dy /= len;
+
+    return { dx, dy };
+}
+
+function createBullet({
+    owner,
+    x,
+    y,
+    dx,
+    dy,
+    weapon,
+    snapshotPlayers,
+    shotTime
+}) {
+    return {
+        id: generateBulletId(),
+
+        x,
+        y,
+
+        dx,
+        dy,
+
+        // 🔥 agora usa velocidade da própria arma
+        speed: weapon.bulletSpeed ?? 0.2,
+
+        range: weapon.range,
+        distanceTraveled: 0,
+
+        owner,
+        damage: weapon.damage,
+
+        snapshotPlayers,
+        shotTime
+    };
+}
+
+function canShoot(player, weaponState, weapon, now) {
+    if (!player) return false;
+    if (player.hp <= 0) return false;
+    if (player.espectador) return false;
+
+    if (player.isSwitching) return false;
+    if (weaponState.isReloading) return false;
+
+    if (now - player.lastShot < weapon.fireRate) return false;
+    if (weaponState.ammoInMag <= 0) return false;
+
+    return true;
+}
+
+// ============================
+// 🔫 HANDLE SHOOT
+// ============================
 
 function handleShoot(id, data) {
-
     const p = players[id];
     if (!p) return;
 
     const now = Date.now();
 
-    const weaponName = p.weapon || "pistol";
-    const weapon = WEAPONS[weaponName] || WEAPONS.pistol;
+    // =========================
+    // 🔫 ARMA ATUAL
+    // =========================
+    const weaponState = getCurrentWeapon(p);
+    if (!weaponState) return;
+
+    const weapon = getWeapon(weaponState.weaponId);
+    if (!weapon) return;
 
     // =========================
-    // TIME VALIDATION
+    // ⛔ VALIDAÇÕES BÁSICAS
     // =========================
+
+    if (!isFinite(Number(data?.dx)) || !isFinite(Number(data?.dy))) return;
+
+    if (!canShoot(p, weaponState, weapon, now)) return;
+
+    // =========================
+    // 🧠 LAG COMPENSATION
+    // =========================
+
     const shotTime = Number(data.time);
     const ping = Number(data.ping) || 0;
 
@@ -51,64 +133,80 @@ function handleShoot(id, data) {
 
     const realShotTime = shotTime - (ping / 2);
 
-    // =========================
-    // SNAPSHOT
-    // =========================
     const snapshot = getSnapshotAt(realShotTime);
 
     let snapshotPlayers = players;
-
     if (snapshot && snapshot.players) {
         snapshotPlayers = snapshot.players;
     }
 
     // =========================
-    // SPREAD
+    // 🔥 FIRE MODE
     // =========================
-    let dx = data.dx + (Math.random() - 0.5) * weapon.spread;
-    let dy = data.dy + (Math.random() - 0.5) * weapon.spread;
+    // Observação:
+    // - com o client atual, auto/semi/manual ainda não chegam 100% distintos
+    // - então aqui mantemos compatibilidade por fireRate
+    // - quando o client mandar estado do gatilho, fechamos manual/semi de vez
 
-    const len = Math.hypot(dx, dy);
-    if (len === 0) return;
-
-    dx /= len;
-    dy /= len;
-
-    // =========================
-    // BLOQUEIOS
-    // =========================
-    if (p.reloading) return;
-
-    if (now - p.lastShot < weapon.fireRate) return;
-
-    if (p.ammoInMag <= 0) return;
+    if (
+        weapon.fireMode !== "auto" &&
+        weapon.fireMode !== "semi" &&
+        weapon.fireMode !== "manual"
+    ) {
+        return;
+    }
 
     // =========================
-    // APLICA TIRO
+    // 🔥 APLICA RECOIL
     // =========================
+
+    clampRecoil(weaponState, weapon);
+
+    const recoilCurrent = weaponState.recoilCurrent;
+
+    // =========================
+    // 🔫 CONSUME TIRO
+    // =========================
+
     p.lastShot = now;
-    p.ammoInMag--;
+    weaponState.ammoInMag--;
 
-    bullets.push({
-        id: generateBulletId(), // 🔥 AGORA SERVER AUTHORITATIVE
+    // =========================
+    // 🔫 SHOTGUN / MULTI-PELLET
+    // =========================
 
-        x: p.x,
-        y: p.y,
+    const pelletCount = Math.max(1, Number(weapon.pellets) || 1);
 
-        dx: dx,
-        dy: dy,
+    for (let i = 0; i < pelletCount; i++) {
+        const spreadResult = applySpread(
+            Number(data.dx),
+            Number(data.dy),
+            weapon,
+            recoilCurrent
+        );
 
-        speed: 0.5,
+        if (!spreadResult) continue;
 
-        range: weapon.range,
-        distanceTraveled: 0,
-
-        owner: id,
-        damage: weapon.damage,
-
-        snapshotPlayers: snapshotPlayers,
-        shotTime: realShotTime
-    });
+        bullets.push(
+            createBullet({
+                owner: id,
+                x: p.x,
+                y: p.y,
+                dx: spreadResult.dx,
+                dy: spreadResult.dy,
+                weapon,
+                snapshotPlayers,
+                shotTime: realShotTime
+            })
+        );
+    }
 }
 
-module.exports = { bullets, handleShoot };
+// ============================
+// 📦 EXPORT
+// ============================
+
+module.exports = {
+    bullets,
+    handleShoot
+};
