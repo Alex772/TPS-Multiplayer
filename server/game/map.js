@@ -11,8 +11,8 @@ const fs = require('fs');
 
 // Mapas
 const mapas = [
-  { nome: "Mapa 1", caminho: "maps/map1.json" },
-  { nome: "Mapa 2", caminho: "maps/map2.json" },
+  { nome: "Mapa 1", caminho: "../database/maps/map1.json" },
+  { nome: "Mapa 2", caminho: "../database/maps/map2.json" },
   // Adicione mais mapas aqui...
 ];
 

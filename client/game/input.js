@@ -1,5 +1,4 @@
-//client/input.js
-
+//client\game\input.js
 import { socket, getMyPlayer } from "./network.js";
 import { moveWithCollision } from "./collision.js";
 
@@ -15,6 +14,18 @@ let inputSeq = 0;
 
 // fila de inputs ainda não confirmados pelo servidor
 const pendingInputs = [];
+
+// ============================
+// 🔥 NOVO: ID LOCAL DAS BALAS
+// ============================
+
+// contador local (único por cliente)
+let bulletSeq = 0;
+
+// gera ID único da bala
+function generateBulletId() {
+    return `${window.myId}-${bulletSeq++}`;
+}
 
 // ============================
 // MOVIMENTO LOCAL (PREDIÇÃO)
@@ -64,7 +75,6 @@ const keys = {
 // INPUT TECLADO (ROBUSTO)
 // ============================
 
-// 🔥 evita repetir eventos ao segurar tecla
 window.addEventListener("keydown", (e) => {
     if (e.repeat) return;
 
@@ -90,7 +100,7 @@ window.addEventListener("keyup", (e) => {
 });
 
 // ============================
-// TIRO
+// 🔫 TIRO (AGORA COM ID)
 // ============================
 
 window.addEventListener("mousedown", (e) => {
@@ -115,11 +125,15 @@ window.addEventListener("mousedown", (e) => {
         dy /= len;
     }
 
+    // 🔥 NOVO: ID da bala
+    const bulletId = generateBulletId();
+
     socket.emit("shoot", {
+        id: bulletId,            // 🔥 ESSENCIAL (novo)
         dx,
         dy,
-        time: Date.now(),        // 🔥 ESSENCIAL
-        ping: window.myPing || 0 // 🔥 ESSENCIAL
+        time: Date.now(),        // 🔥 compensação de lag
+        ping: window.myPing || 0 // 🔥 compensação de lag
     });
 });
 

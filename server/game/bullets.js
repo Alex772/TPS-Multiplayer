@@ -1,9 +1,35 @@
-//server/game/bullets.js
-
 const { players } = require("./players");
-const { getSnapshotAt } = require("./snapshots"); // 🔥 NOVO
+const { getSnapshotAt } = require("./snapshots");
 
 let bullets = [];
+
+// ============================
+// 🔥 ID GLOBAL DE BALAS (SERVER)
+// ============================
+let bulletIdCounter = 0;
+
+function generateBulletId() {
+    return `b_${bulletIdCounter++}`;
+}
+
+// ============================
+// 🔫 CONFIG DE ARMAS
+// ============================
+
+const WEAPONS = {
+    pistol: {
+        range: 600,
+        damage: 20,
+        fireRate: 200,
+        spread: 0.05
+    },
+    rifle: {
+        range: 900,
+        damage: 15,
+        fireRate: 100,
+        spread: 0.03
+    }
+};
 
 function handleShoot(id, data) {
 
@@ -12,23 +38,24 @@ function handleShoot(id, data) {
 
     const now = Date.now();
 
+    const weaponName = p.weapon || "pistol";
+    const weapon = WEAPONS[weaponName] || WEAPONS.pistol;
+
     // =========================
-    // 🔥 VALIDAÇÃO DE TEMPO
+    // TIME VALIDATION
     // =========================
     const shotTime = Number(data.time);
     const ping = Number(data.ping) || 0;
 
     if (!isFinite(shotTime)) return;
 
-    // 🔥 calcula tempo REAL do tiro
     const realShotTime = shotTime - (ping / 2);
 
     // =========================
-    // 🔥 PEGA SNAPSHOT DO PASSADO
+    // SNAPSHOT
     // =========================
     const snapshot = getSnapshotAt(realShotTime);
 
-    // fallback (se não achar snapshot)
     let snapshotPlayers = players;
 
     if (snapshot && snapshot.players) {
@@ -36,12 +63,10 @@ function handleShoot(id, data) {
     }
 
     // =========================
-    // 🔥 SPREAD
+    // SPREAD
     // =========================
-    const SPREAD = 0.05;
-
-    let dx = data.dx + (Math.random() - 0.5) * SPREAD;
-    let dy = data.dy + (Math.random() - 0.5) * SPREAD;
+    let dx = data.dx + (Math.random() - 0.5) * weapon.spread;
+    let dy = data.dy + (Math.random() - 0.5) * weapon.spread;
 
     const len = Math.hypot(dx, dy);
     if (len === 0) return;
@@ -50,34 +75,38 @@ function handleShoot(id, data) {
     dy /= len;
 
     // =========================
-    // 🔥 BLOQUEIOS
+    // BLOQUEIOS
     // =========================
     if (p.reloading) return;
 
-    const FIRE_RATE = 200;
-    if (now - p.lastShot < FIRE_RATE) return;
+    if (now - p.lastShot < weapon.fireRate) return;
 
     if (p.ammoInMag <= 0) return;
 
     // =========================
-    // 🔥 APLICA TIRO
+    // APLICA TIRO
     // =========================
     p.lastShot = now;
     p.ammoInMag--;
 
     bullets.push({
+        id: generateBulletId(), // 🔥 AGORA SERVER AUTHORITATIVE
+
         x: p.x,
         y: p.y,
+
         dx: dx,
         dy: dy,
-        life: 100,
+
+        speed: 0.5,
+
+        range: weapon.range,
+        distanceTraveled: 0,
+
         owner: id,
-        damage: 20,
+        damage: weapon.damage,
 
-        // 🔥 ESSÊNCIA DA LAG COMP
         snapshotPlayers: snapshotPlayers,
-
-        // opcional (debug)
         shotTime: realShotTime
     });
 }

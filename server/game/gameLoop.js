@@ -1,5 +1,3 @@
-//server/game/gameLoop.js
-
 const { players } = require("./players");
 const { bullets } = require("./bullets");
 const { saveSnapshot } = require("./snapshots");
@@ -19,7 +17,6 @@ const SPEED = 0.05;
 const BULLET_SPEED = 0.2;
 
 // quantidade de subdivisões
-// n passa de 8 por garantia de pode causa lag
 const BULLET_STEPS = 1;
 
 function gameLoop(io, buildState) {
@@ -27,12 +24,12 @@ function gameLoop(io, buildState) {
     setInterval(() => {
 
         // =====================
-        // 📸 SALVA HISTÓRICO
+        // 📸 SNAPSHOT
         // =====================
         saveSnapshot(players);
 
         // =====================
-        // MOVE PLAYERS (NORMAL)
+        // MOVE PLAYERS
         // =====================
         for (let id in players) {
 
@@ -56,43 +53,45 @@ function gameLoop(io, buildState) {
             let newX = p.x + dx * SPEED;
             let newY = p.y + dy * SPEED;
 
-            // morto (fantasma)
             if (p.hp <= 0) {
 
-                if (newX >= 0 && newX <= MAP_WIDTH) {
-                    p.x = newX;
-                }
-
-                if (newY >= 0 && newY <= MAP_HEIGHT) {
-                    p.y = newY;
-                }
+                if (newX >= 0 && newX <= MAP_WIDTH) p.x = newX;
+                if (newY >= 0 && newY <= MAP_HEIGHT) p.y = newY;
 
             } else {
 
                 if (!isWall(newX, p.y)) p.x = newX;
                 if (!isWall(p.x, newY)) p.y = newY;
-
-                //tryPickupItem(p);
             }
 
-            // reconciliação
             if (p.input.seq !== undefined) {
                 p.lastProcessedInput = p.input.seq;
             }
         }
 
         // =====================
-        // MOVE BULLETS + COLISÃO (CORRIGIDO)
+        // 🔥 BULLETS (COM RANGE REAL)
         // =====================
         for (let i = bullets.length - 1; i >= 0; i--) {
 
             const b = bullets[i];
 
-            // 🔥 SUBSTEPS (ANTI-TUNNELING)
             for (let step = 0; step < BULLET_STEPS; step++) {
 
-                b.x += b.dx * (BULLET_SPEED / BULLET_STEPS);
-                b.y += b.dy * (BULLET_SPEED / BULLET_STEPS);
+                const stepSpeed = BULLET_SPEED / BULLET_STEPS;
+
+                b.x += b.dx * stepSpeed;
+                b.y += b.dy * stepSpeed;
+
+                // =====================
+                // 🔥 RANGE (NOVO)
+                // =====================
+                b.distanceTraveled += stepSpeed;
+
+                if (b.distanceTraveled >= b.range) {
+                    bullets.splice(i, 1);
+                    break;
+                }
 
                 // =====================
                 // COLISÃO ESPECIAL
@@ -107,16 +106,15 @@ function gameLoop(io, buildState) {
                 // =====================
                 if (isWall(b.x, b.y)) {
 
-                    // 🔥 opcional: volta um passo pra não grudar
-                    b.x -= b.dx * (BULLET_SPEED / BULLET_STEPS);
-                    b.y -= b.dy * (BULLET_SPEED / BULLET_STEPS);
+                    b.x -= b.dx * stepSpeed;
+                    b.y -= b.dy * stepSpeed;
 
                     bullets.splice(i, 1);
                     break;
                 }
 
                 // =====================
-                // COLISÃO COM PLAYERS (LAG COMP)
+                // PLAYER HIT (LAG COMP)
                 // =====================
                 for (let id in players) {
 
@@ -137,7 +135,6 @@ function gameLoop(io, buildState) {
 
                     if (dist < HIT_RADIUS) {
 
-                        // aplica no real
                         realPlayer.hp -= b.damage;
 
                         console.log("💥 hit em", id, "hp:", realPlayer.hp);
@@ -156,17 +153,7 @@ function gameLoop(io, buildState) {
                     }
                 }
 
-                // se bala já foi removida, sai do loop
                 if (!bullets[i]) break;
-            }
-
-            // tempo de vida
-            if (bullets[i]) {
-                bullets[i].life--;
-
-                if (bullets[i].life <= 0) {
-                    bullets.splice(i, 1);
-                }
             }
         }
 

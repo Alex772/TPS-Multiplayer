@@ -1,4 +1,3 @@
-//client\render.js
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
@@ -21,10 +20,8 @@ export function render(state, myId) {
 
     if (!state.map || typeof state.map !== "object") return;
 
-    //tamanho dos tiles (MAP)
     const TILE_SIZE = 50;
 
-    // DESENHAR CAMADAS
     const layerNames = ["collision", "items", "interactive"];
     
     layerNames.forEach(layerName => {
@@ -41,108 +38,114 @@ export function render(state, myId) {
                 let drawX = (x - camX) * TILE_SIZE + canvas.width / 2;
                 let drawY = (y - camY) * TILE_SIZE + canvas.height / 2;
 
-                // Estilos por tipo de tile
                 switch (tile) {
-                    case 1: // WALL
-                        ctx.fillStyle = "#555";
-                        break;
-                    case 2: // BARREL
-                        ctx.fillStyle = "#8B4513"; // Marrom
-                        break;
-                    case 3: // CAR
-                        ctx.fillStyle = "#4682B4"; // Azul aço
-                        break;
-                    case 4: // ITEM_GUN
-                        ctx.fillStyle = "#FFD700"; // Dourado
-                        break;
-                    case 5: // ITEM_AMMO
-                        ctx.fillStyle = "#FF8C00"; // Laranja escuro
-                        break;
-                    default:
-                        ctx.fillStyle = "magenta"; // Erro visual
+                    case 1: ctx.fillStyle = "#555"; break;       // WALL
+                    case 2: ctx.fillStyle = "#8B4513"; break;    // BARREL
+                    case 3: ctx.fillStyle = "#4682B4"; break;    // CAR
+                    case 4: ctx.fillStyle = "#FFD700"; break;    // GUN
+                    case 5: ctx.fillStyle = "#FF8C00"; break;    // AMMO
+                    default: ctx.fillStyle = "magenta";
                 }
 
                 ctx.fillRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
-                
-                // Borda para destacar tiles
                 ctx.strokeStyle = "rgba(0,0,0,0.1)";
                 ctx.strokeRect(drawX, drawY, TILE_SIZE, TILE_SIZE);
             }
         }
     });
 
+    // ========================
+    // PLAYERS
+    // ========================
 
-
-
-
-    // players
     for (let id in state.players) {
         let p = state.players[id];
 
-        let x = (p.x - camX) * 50 + canvas.width / 2;
-        let y = (p.y - camY) * 50 + canvas.height / 2;
+        let x = (p.x - camX) * TILE_SIZE + canvas.width / 2;
+        let y = (p.y - camY) * TILE_SIZE + canvas.height / 2;
 
         ctx.fillStyle = id === myId ? "blue" : "red";
         
         const size = 10;
+
         if (p.hp <= 0) {
-            ctx.globalAlpha = 0.5; // meio transparente
+            ctx.globalAlpha = 0.5;
         }
-        // 🔥 desenha centralizado
+
         ctx.fillRect(
             x - size / 2,
             y - size / 2,
             size,
             size
         );
-        ctx.globalAlpha = 1;    // volta ao normal
+
+        ctx.globalAlpha = 1;
     }
 
-    // bullets
-    ctx.fillStyle = "red";
+    // ========================
+    // BULLETS (COM OFFSET VISUAL + TRAIL)
+    // ========================
 
     if (Array.isArray(state.bullets)) {
         for (let b of state.bullets) {
 
-            let x = (b.x - camX) * 50 + canvas.width / 2;
-            let y = (b.y - camY) * 50 + canvas.height / 2;
+            let x = (b.x - camX) * TILE_SIZE + canvas.width / 2;
+            let y = (b.y - camY) * TILE_SIZE + canvas.height / 2;
 
+            // ========================
+            // 🔥 OFFSET VISUAL
+            // ========================
+            // se tiver direção, empurra a bala pra frente
+            if (b.dx !== undefined && b.dy !== undefined) {
+                const offset = 6; // distância visual
+                x += b.dx * offset;
+                y += b.dy * offset;
+            }
+
+            // ========================
+            // 🔥 TRAIL SIMPLES
+            // ========================
+            ctx.globalAlpha = 0.3;
+            ctx.fillStyle = "orange";
+            ctx.fillRect(x - 2, y - 2, 6, 6);
+
+            ctx.globalAlpha = 1;
+
+            // ========================
+            // BALA PRINCIPAL
+            // ========================
+            ctx.fillStyle = "red";
             ctx.fillRect(x, y, 4, 4);
         }
     }
-}
 
+    // ========================
+    // HITMARKER
+    // ========================
 
-// ========================
-// HITMARKER
-// ========================
-const me = state.players[myId];
+    if (me && me.hit) {
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 2;
 
-if (me && me.hit) {
-    ctx.strokeStyle = "white";
-    ctx.lineWidth = 2;
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
 
-    const cx = canvas.width / 2;
-    const cy = canvas.height / 2;
+        ctx.beginPath();
+        ctx.moveTo(cx - 10, cy - 10);
+        ctx.lineTo(cx + 10, cy + 10);
 
-    ctx.beginPath();
-    ctx.moveTo(cx - 10, cy - 10);
-    ctx.lineTo(cx + 10, cy + 10);
+        ctx.moveTo(cx + 10, cy - 10);
+        ctx.lineTo(cx - 10, cy + 10);
 
-    ctx.moveTo(cx + 10, cy - 10);
-    ctx.lineTo(cx - 10, cy + 10);
+        ctx.stroke();
 
-    ctx.stroke();
+        me.hit = false;
+    }
 
-    // reset (IMPORTANTE)
-    me.hit = false;
-}
+    // ========================
+    // HUD
+    // ========================
 
-
-// ========================
-// HUD
-// ========================
-if (me) {
     ctx.fillStyle = "white";
     ctx.font = "20px Arial";
 

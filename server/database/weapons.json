@@ -1,0 +1,98 @@
+{
+  "pistol": {
+    "name": "Pistol",
+    "fireMode": "semi",
+
+    "damage": 20,
+    "range": 25,
+
+    "fireRate": 300,
+    "reloadTime": 1200,
+
+    "magSize": 12,
+    "reserveMags": 5,
+
+    "recoil": 0.015,
+    "spread": 0.01,
+
+    "bulletSpeed": 0.25
+  },
+
+  "rifle": {
+    "name": "Rifle",
+    "fireMode": "auto",
+
+    "damage": 15,
+    "range": 35,
+
+    "fireRate": 100,
+    "reloadTime": 1800,
+
+    "magSize": 30,
+    "reserveMags": 4,
+
+    "recoil": 0.025,
+    "spread": 0.015,
+
+    "bulletSpeed": 0.3
+  },
+
+  "smg": {
+    "name": "SMG",
+    "fireMode": "auto",
+
+    "damage": 10,
+    "range": 20,
+
+    "fireRate": 70,
+    "reloadTime": 1600,
+
+    "magSize": 35,
+    "reserveMags": 4,
+
+    "recoil": 0.035,
+    "spread": 0.025,
+
+    "bulletSpeed": 0.28
+  },
+
+  "shotgun": {
+    "name": "Shotgun",
+    "fireMode": "semi",
+
+    "damage": 8,
+    "range": 12,
+
+    "fireRate": 800,
+    "reloadTime": 2200,
+
+    "magSize": 6,
+    "reserveMags": 3,
+
+    "recoil": 0.08,
+    "spread": 0.15,
+
+    "pellets": 6,
+
+    "bulletSpeed": 0.22
+  },
+
+  "sniper": {
+    "name": "Sniper",
+    "fireMode": "semi",
+
+    "damage": 80,
+    "range": 60,
+
+    "fireRate": 1200,
+    "reloadTime": 2500,
+
+    "magSize": 5,
+    "reserveMags": 3,
+
+    "recoil": 0.1,
+    "spread": 0.002,
+
+    "bulletSpeed": 0.5
+  }
+}
