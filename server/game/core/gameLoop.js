@@ -39,6 +39,7 @@ function updateBullets() {
 function emitStates(io) {
   for (const socketId in players) {
     const state = buildStateForPlayer(socketId, bullets);
+
     if (state) io.to(socketId).emit('state', state);
   }
 }

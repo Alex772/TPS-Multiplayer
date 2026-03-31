@@ -12,8 +12,17 @@ function distance(ax, ay, bx, by) {
 
 function normalize(dx, dy) {
   const len = Math.hypot(dx, dy);
-  if (len <= 0) return { dx: 1, dy: 0, len: 0 };
-  return { dx: dx / len, dy: dy / len, len };
+
+  // 🔥 CORREÇÃO: vetor zero NÃO pode ter direção
+  if (len === 0) {
+    return { dx: 0, dy: 0, len: 0 };
+  }
+
+  return {
+    dx: dx / len,
+    dy: dy / len,
+    len
+  };
 }
 
 function angleFromVector(dx, dy) {

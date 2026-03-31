@@ -117,6 +117,8 @@ setInterval(() => socket.emit('pingCheck', Date.now()), 1000);
 
 let lastPing = 0;
 socket.on('pongCheck', (start) => {
+  //const me = window.myId;
+  //console.log('[CLIENT state]', me ? data?.players?.[me] : data);
   const ping = Date.now() - start;
   window.myPing = lastPing * 0.7 + ping * 0.3;
   lastPing = window.myPing;

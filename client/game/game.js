@@ -7,7 +7,7 @@ function loop() {
     requestAnimationFrame(loop);
     return;
   }
-  applyLocalMovement();
+  //applyLocalMovement();
   interpolate();
   render(window.state, window.myId);
   requestAnimationFrame(loop);

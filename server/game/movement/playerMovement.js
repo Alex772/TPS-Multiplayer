@@ -19,10 +19,13 @@ function updatePlayerMovement(player) {
 
   let dx = 0;
   let dy = 0;
+
   if (player.input.up) dy -= 1;
   if (player.input.down) dy += 1;
   if (player.input.left) dx -= 1;
   if (player.input.right) dx += 1;
+
+  if (dx === 0 && dy === 0) return;
 
   const dir = normalize(dx, dy);
   const speed = SPEED;

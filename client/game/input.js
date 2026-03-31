@@ -155,7 +155,12 @@ window.addEventListener('keyup', (e) => {
     case 'd': keys.d = false; break;
   }
 });
-
+function resetMovementKeys() {
+  keys.w = false;
+  keys.a = false;
+  keys.s = false;
+  keys.d = false;
+}
 window.addEventListener('mousemove', (e) => {
   mouse.x = e.clientX;
   mouse.y = e.clientY;
@@ -177,13 +182,14 @@ window.addEventListener('mouseup', (e) => {
 });
 
 window.addEventListener('blur', () => {
-  keys.w = keys.a = keys.s = keys.d = false;
+  resetMovementKeys();
   setFireState(false);
   setAdsState(false);
 });
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
+    resetMovementKeys();
     setFireState(false);
     setAdsState(false);
   }
@@ -208,6 +214,7 @@ setInterval(() => {
     aimDy: aim.dy,
     ads: mouse.rightDown,
   };
+  //console.log('INPUT ENVIADO:', input);
   pushPendingInput(input);
   socket.emit('input', input);
 }, 50);
