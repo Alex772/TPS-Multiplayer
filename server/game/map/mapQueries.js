@@ -1,21 +1,10 @@
-//server/game/map/mapQueries.js
+const { MAP_WIDTH, MAP_HEIGHT } = require('./mapState');
 
-const { layers, TILES, MAP_WIDTH, MAP_HEIGHT } = require("./mapState");
-
-function tryPickupItem(x, y) {
-  const tx = Math.floor(x);
-  const ty = Math.floor(y);
-
-  if (tx < 0 || ty < 0 || tx >= MAP_WIDTH || ty >= MAP_HEIGHT) return null;
-
-  const item = layers.items[ty][tx];
-
-  if (item !== TILES.EMPTY) {
-    layers.items[ty][tx] = TILES.EMPTY;
-    return item;
-  }
-
-  return null;
+function clampToMap(x, y) {
+  return {
+    x: Math.max(0, Math.min(MAP_WIDTH - 0.01, x)),
+    y: Math.max(0, Math.min(MAP_HEIGHT - 0.01, y)),
+  };
 }
 
-module.exports = { tryPickupItem };
+module.exports = { clampToMap };

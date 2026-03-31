@@ -1,17 +1,20 @@
-//server/game/map.js
 
-const { layers, TILES, MAP_WIDTH, MAP_HEIGHT } = require("./map/mapState");
+const { mapData, layers, TILES, MAP_WIDTH, MAP_HEIGHT, spawnPoints, lootSpawns } = require("./map/mapState");
 const { isWall, isBulletBlocked } = require("./map/mapCollision");
-const { tryPickupItem } = require("./map/mapQueries");
+const { tryPickupItemTile, isInsideMap } = require("./map/mapQueries");
 const { damageObject } = require("./map/mapObjects");
 
 module.exports = {
+  mapData,
   layers,
   TILES,
   MAP_WIDTH,
   MAP_HEIGHT,
+  spawnPoints,
+  lootSpawns,
   isWall,
   isBulletBlocked,
-  tryPickupItem,
-  damageObject
+  tryPickupItemTile,
+  isInsideMap,
+  damageObject,
 };

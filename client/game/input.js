@@ -1,305 +1,213 @@
-import { socket, getMyPlayer, getCurrentWeapon } from "./network.js";
-import { moveWithCollision } from "./collision.js";
+import { getMyPlayer, getCurrentWeapon } from './network.js';
+import { socket } from './netSocket.js';
+import { pushPendingInput } from './pendingInputs.js';
+import { moveWithCollision } from './collision.js';
 
-// 🔥 IMPORTANTE: esse valor DEVE ser igual ao do servidor
 const SPEED = 0.05;
-
-// ============================
-// SISTEMA DE INPUT (CLIENT-SIDE PREDICTION)
-// ============================
-
-// sequência dos inputs (usado na reconciliação)
 let inputSeq = 0;
-
-// fila de inputs ainda não confirmados pelo servidor
-const pendingInputs = [];
-
-// ============================
-// ESTADO DAS TECLAS
-// ============================
-
-const keys = {
-    w: false,
-    a: false,
-    s: false,
-    d: false
-};
-
-// ============================
-// ESTADO DO MOUSE / COMBATE
-// ============================
-
-const mouse = {
-    x: window.innerWidth / 2,
-    y: window.innerHeight / 2,
-    down: false
-};
-
-// usado para troca por scroll
+const keys = { w: false, a: false, s: false, d: false };
+const mouse = { x: window.innerWidth / 2, y: window.innerHeight / 2, down: false, rightDown: false };
 let lastScrollSwitch = 0;
 const SCROLL_SWITCH_COOLDOWN = 120;
+let autoFireInterval = null;
+window.localInputState = window.localInputState || { ads: false, firing: false };
 
-// ============================
-// MOVIMENTO LOCAL (PREDIÇÃO)
-// ============================
-
-export function applyLocalMovement() {
-    const p = getMyPlayer();
-    if (!p) return;
-
-    let dx = 0;
-    let dy = 0;
-
-    if (keys.w) dy -= 1;
-    if (keys.s) dy += 1;
-    if (keys.a) dx -= 1;
-    if (keys.d) dx += 1;
-
-    // normalização (evita diagonal mais rápida)
-    const len = Math.hypot(dx, dy);
-    if (len > 0) {
-        dx /= len;
-        dy /= len;
-    }
-
-    // predição local
-    if (p.hp > 0) {
-        moveWithCollision(p, dx * SPEED, dy * SPEED);
-    } else {
-        // modo fantasma
-        p.x += dx * SPEED;
-        p.y += dy * SPEED;
-    }
+function getCanvas() {
+  return document.getElementById('game');
 }
 
-// ============================
-// UTIL DE MIRA
-// ============================
-
-function getAimDirection() {
-    const rect = document.getElementById("game").getBoundingClientRect();
-
-    const mouseX = mouse.x - rect.left;
-    const mouseY = mouse.y - rect.top;
-
-    // referência da câmera no centro da tela
-    const centerX = window.innerWidth / 2;
-    const centerY = window.innerHeight / 2;
-
-    let dx = mouseX - centerX;
-    let dy = mouseY - centerY;
-
-    const len = Math.hypot(dx, dy);
-    if (len <= 0) return null;
-
+export function applyLocalMovement() {
+  const p = getMyPlayer();
+  if (!p) return;
+  let dx = 0, dy = 0;
+  if (keys.w) dy -= 1;
+  if (keys.s) dy += 1;
+  if (keys.a) dx -= 1;
+  if (keys.d) dx += 1;
+  const len = Math.hypot(dx, dy);
+  if (len > 0) {
     dx /= len;
     dy /= len;
+  }
+  if (p.hp > 0) moveWithCollision(p, dx * SPEED, dy * SPEED);
+}
 
-    return { dx, dy };
+function getAimDirection() {
+  const canvas = getCanvas();
+  if (!canvas) return null;
+  const rect = canvas.getBoundingClientRect();
+  const mouseX = mouse.x - rect.left;
+  const mouseY = mouse.y - rect.top;
+  const centerX = rect.width / 2;
+  const centerY = rect.height / 2;
+  let dx = mouseX - centerX;
+  let dy = mouseY - centerY;
+  const len = Math.hypot(dx, dy);
+  if (len <= 0) return null;
+  return { dx: dx / len, dy: dy / len };
 }
 
 function canUseCombatInput() {
-    const p = getMyPlayer();
-    if (!p) return false;
-    if (p.hp <= 0) return false;
-    if (p.espectador) return false;
-    return true;
+  const p = getMyPlayer();
+  return !!p && p.hp > 0 && !p.espectador;
 }
 
-// ============================
-// TIRO
-// ============================
+function emitAim() {
+  const aim = getAimDirection();
+  if (!aim) return;
+  socket.emit('aim', { dx: aim.dx, dy: aim.dy, ads: mouse.rightDown });
+}
 
 function shootOnce() {
-    if (!canUseCombatInput()) return;
-
-    const p = getMyPlayer();
-    const weapon = getCurrentWeapon();
-
-    if (!p || !weapon) return;
-    if (p.isSwitching) return;
-    if (weapon.isReloading) return;
-    if (weapon.ammoInMag <= 0) return;
-
-    const aim = getAimDirection();
-    if (!aim) return;
-
-    socket.emit("shoot", {
-        dx: aim.dx,
-        dy: aim.dy,
-        time: Date.now(),
-        ping: window.myPing || 0
-    });
+  if (!canUseCombatInput()) return;
+  const p = getMyPlayer();
+  const weapon = getCurrentWeapon();
+  if (!p || !weapon || p.isSwitching || weapon.isReloading || weapon.ammoInMag <= 0) return;
+  const aim = getAimDirection();
+  if (!aim) return;
+  socket.emit('shoot', { dx: aim.dx, dy: aim.dy, ads: mouse.rightDown, time: Date.now(), ping: window.myPing || 0 });
 }
 
-// ============================
-// TROCA DE ARMA
-// ============================
+function startAutoFire() {
+  if (autoFireInterval) return;
+  window.localInputState.firing = true;
+  shootOnce();
+  autoFireInterval = setInterval(() => {
+    const weapon = getCurrentWeapon();
+    if (!mouse.down || !weapon) return;
+    if (weapon.weaponId === 'pistol' || weapon.weaponId === 'shotgun' || weapon.weaponId === 'sniper') return;
+    shootOnce();
+  }, 80);
+}
+
+function stopAutoFire() {
+  window.localInputState.firing = false;
+  clearInterval(autoFireInterval);
+  autoFireInterval = null;
+}
+
+function setAdsState(value) {
+  const next = !!value;
+  if (mouse.rightDown === next) return;
+  mouse.rightDown = next;
+  window.localInputState.ads = next;
+  emitAim();
+}
+
+function setFireState(value) {
+  const next = !!value;
+  if (mouse.down === next) return;
+  mouse.down = next;
+  if (next) startAutoFire();
+  else stopAutoFire();
+}
+
+function syncPointerButtons(event) {
+  const buttons = Number(event?.buttons || 0);
+  setFireState((buttons & 1) !== 0);
+  setAdsState((buttons & 2) !== 0);
+}
 
 function switchTo(slot) {
-    const p = getMyPlayer();
-    if (!p || !p.loadout) return;
-
-    if (p.isSwitching) return;
-    if (p.loadout.current === slot) return;
-    if (!p.loadout[slot]) return;
-
-    socket.emit("switchWeapon", { slot });
+  const p = getMyPlayer();
+  if (!p?.loadout || p.isSwitching || p.loadout.current === slot || !p.loadout[slot]) return;
+  socket.emit('switchWeapon', { slot });
 }
 
 function switchByToggle() {
-    const p = getMyPlayer();
-    if (!p || !p.loadout) return;
-
-    const nextSlot = p.loadout.current === "primary" ? "secondary" : "primary";
-    switchTo(nextSlot);
+  const p = getMyPlayer();
+  if (!p?.loadout) return;
+  switchTo(p.loadout.current === 'primary' ? 'secondary' : 'primary');
 }
-
-// ============================
-// RELOAD
-// ============================
 
 function requestReload() {
-    if (!canUseCombatInput()) return;
-
-    const weapon = getCurrentWeapon();
-    if (!weapon) return;
-
-    if (weapon.isReloading) return;
-    if (weapon.magsLeft <= 0) return;
-
-    socket.emit("reload");
+  if (!canUseCombatInput()) return;
+  const weapon = getCurrentWeapon();
+  if (!weapon || weapon.isReloading || weapon.magsLeft <= 0) return;
+  socket.emit('reload');
 }
 
-// ============================
-// INPUT TECLADO
-// ============================
+window.addEventListener('keydown', (e) => {
+  if (e.repeat) return;
 
-window.addEventListener("keydown", (e) => {
-    if (e.repeat) return;
-
-    switch (e.key.toLowerCase()) {
-        case "w":
-            keys.w = true;
-            break;
-        case "s":
-            keys.s = true;
-            break;
-        case "a":
-            keys.a = true;
-            break;
-        case "d":
-            keys.d = true;
-            break;
-
-        // reload manual
-        case "r":
-            requestReload();
-            break;
-
-        // toggle entre primary/secondary
-        case "q":
-            switchByToggle();
-            break;
-
-        // slots diretos
-        case "1":
-            switchTo("primary");
-            break;
-        case "2":
-            switchTo("secondary");
-            break;
-    }
+  switch (e.key.toLowerCase()) {
+    case 'w': keys.w = true; break;
+    case 's': keys.s = true; break;
+    case 'a': keys.a = true; break;
+    case 'd': keys.d = true; break;
+    case 'r': requestReload(); break;
+    case 'q': switchByToggle(); break;
+    case '1': switchTo('primary'); break;
+    case '2': switchTo('secondary'); break;
+    case 'e':
+      if (canUseCombatInput()) {
+        socket.emit('pickup');
+      }
+      break;
+  }
 });
 
-window.addEventListener("keyup", (e) => {
-    switch (e.key.toLowerCase()) {
-        case "w":
-            keys.w = false;
-            break;
-        case "s":
-            keys.s = false;
-            break;
-        case "a":
-            keys.a = false;
-            break;
-        case "d":
-            keys.d = false;
-            break;
-    }
+window.addEventListener('keyup', (e) => {
+  switch (e.key.toLowerCase()) {
+    case 'w': keys.w = false; break;
+    case 's': keys.s = false; break;
+    case 'a': keys.a = false; break;
+    case 'd': keys.d = false; break;
+  }
 });
 
-// ============================
-// INPUT MOUSE
-// ============================
-
-window.addEventListener("mousemove", (e) => {
-    mouse.x = e.clientX;
-    mouse.y = e.clientY;
+window.addEventListener('mousemove', (e) => {
+  mouse.x = e.clientX;
+  mouse.y = e.clientY;
+  syncPointerButtons(e);
+  emitAim();
 });
 
-window.addEventListener("mousedown", (e) => {
-    if (e.button !== 0) return; // botão esquerdo
-    mouse.down = true;
+window.addEventListener('contextmenu', (e) => e.preventDefault());
 
-    // por enquanto: clique dispara 1 vez
-    // o modo auto completo fecha quando o client também conhecer fireMode
-    shootOnce();
+window.addEventListener('mousedown', (e) => {
+  if (e.button === 2) e.preventDefault();
+  syncPointerButtons(e);
+  emitAim();
 });
 
-window.addEventListener("mouseup", (e) => {
-    if (e.button !== 0) return;
-    mouse.down = false;
+window.addEventListener('mouseup', (e) => {
+  syncPointerButtons(e);
+  emitAim();
 });
 
-window.addEventListener(
-    "wheel",
-    (e) => {
-        const now = Date.now();
-        if (now - lastScrollSwitch < SCROLL_SWITCH_COOLDOWN) return;
+window.addEventListener('blur', () => {
+  keys.w = keys.a = keys.s = keys.d = false;
+  setFireState(false);
+  setAdsState(false);
+});
 
-        lastScrollSwitch = now;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    setFireState(false);
+    setAdsState(false);
+  }
+});
 
-        const p = getMyPlayer();
-        if (!p || !p.loadout) return;
-
-        if (e.deltaY > 0) {
-            // roda para baixo -> alterna
-            switchByToggle();
-        } else if (e.deltaY < 0) {
-            // roda para cima -> alterna também
-            switchByToggle();
-        }
-    },
-    { passive: true }
-);
-
-// ============================
-// ENVIO DE INPUT (20Hz)
-// ============================
+window.addEventListener('wheel', () => {
+  const now = Date.now();
+  if (now - lastScrollSwitch < SCROLL_SWITCH_COOLDOWN) return;
+  lastScrollSwitch = now;
+  switchByToggle();
+}, { passive: true });
 
 setInterval(() => {
-    const input = {
-        seq: inputSeq++,
-        up: keys.w,
-        down: keys.s,
-        left: keys.a,
-        right: keys.d
-    };
-
-    pendingInputs.push(input);
-
-    if (pendingInputs.length > 100) {
-        pendingInputs.shift();
-    }
-
-    socket.emit("input", input);
+  const aim = getAimDirection() || { dx: 1, dy: 0 };
+  const input = {
+    seq: inputSeq++,
+    up: keys.w,
+    down: keys.s,
+    left: keys.a,
+    right: keys.d,
+    aimDx: aim.dx,
+    aimDy: aim.dy,
+    ads: mouse.rightDown,
+  };
+  pushPendingInput(input);
+  socket.emit('input', input);
 }, 50);
-
-// ============================
-// UTIL (USADO NO NETWORK)
-// ============================
-
-export function getPendingInputs() {
-    return pendingInputs;
-}

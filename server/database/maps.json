@@ -1,0 +1,15 @@
+{
+  "activeMap": "map1",
+  "maps": [
+    {
+      "id": "map1",
+      "name": "Arena Central",
+      "file": "./maps/map1.json"
+    },
+    {
+      "id": "map2",
+      "name": "Cidade Quebrada",
+      "file": "./maps/map2.json"
+    }
+  ]
+}

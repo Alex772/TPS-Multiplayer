@@ -1,0 +1,70 @@
+{
+  "weapon_rifle": {
+    "id": "weapon_rifle",
+    "name": "Rifle",
+    "type": "weapon",
+    "weaponId": "rifle",
+    "slot": "primary",
+    "color": "#FFD700"
+  },
+  "weapon_smg": {
+    "id": "weapon_smg",
+    "name": "SMG",
+    "type": "weapon",
+    "weaponId": "smg",
+    "slot": "primary",
+    "color": "#FFB347"
+  },
+  "weapon_shotgun": {
+    "id": "weapon_shotgun",
+    "name": "Shotgun",
+    "type": "weapon",
+    "weaponId": "shotgun",
+    "slot": "primary",
+    "color": "#F4A460"
+  },
+  "weapon_sniper": {
+    "id": "weapon_sniper",
+    "name": "Sniper",
+    "type": "weapon",
+    "weaponId": "sniper",
+    "slot": "primary",
+    "color": "#87CEFA"
+  },
+  "ammo_light": {
+    "id": "ammo_light",
+    "name": "Light Ammo",
+    "type": "ammo",
+    "amount": 1,
+    "mags": 2,
+    "color": "#F0E68C"
+  },
+  "scope_2x": {
+    "id": "scope_2x",
+    "name": "Mira 2x",
+    "type": "scope",
+    "zoom": 2,
+    "color": "#7CFC00"
+  },
+  "scope_4x": {
+    "id": "scope_4x",
+    "name": "Mira 4x",
+    "type": "scope",
+    "zoom": 4,
+    "color": "#00CED1"
+  },
+  "scope_8x": {
+    "id": "scope_8x",
+    "name": "Mira 8x",
+    "type": "scope",
+    "zoom": 8,
+    "color": "#FF69B4"
+  },
+  "medkit": {
+    "id": "medkit",
+    "name": "Kit Medico",
+    "type": "heal",
+    "amount": 25,
+    "color": "#FF6B6B"
+  }
+}

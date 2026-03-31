@@ -2,97 +2,147 @@
   "pistol": {
     "name": "Pistol",
     "fireMode": "semi",
-
     "damage": 20,
-    "range": 25,
-
-    "fireRate": 300,
+    "range": 18,
+    "fireRate": 260,
     "reloadTime": 1200,
-
     "magSize": 12,
     "reserveMags": 5,
-
-    "recoil": 0.015,
+    "recoil": 0.014,
     "spread": 0.01,
-
-    "bulletSpeed": 0.25
+    "bulletSpeed": 0.28,
+    "vision": {
+      "baseRadius": 5.0,
+      "coneRange": 9.5,
+      "coneAngle": 92,
+      "adsBonus": 1.08,
+      "minConeAngle": 26
+    },
+    "scope": {
+      "allowed": [
+        2
+      ]
+    },
+    "handling": {
+      "swapTime": 180,
+      "weight": 0.8
+    }
   },
-
   "rifle": {
     "name": "Rifle",
     "fireMode": "auto",
-
-    "damage": 15,
-    "range": 35,
-
-    "fireRate": 100,
-    "reloadTime": 1800,
-
+    "damage": 16,
+    "range": 30,
+    "fireRate": 95,
+    "reloadTime": 1850,
     "magSize": 30,
     "reserveMags": 4,
-
-    "recoil": 0.025,
-    "spread": 0.015,
-
-    "bulletSpeed": 0.3
+    "recoil": 0.022,
+    "spread": 0.013,
+    "bulletSpeed": 0.34,
+    "vision": {
+      "baseRadius": 5.5,
+      "coneRange": 16.5,
+      "coneAngle": 78,
+      "adsBonus": 1.24,
+      "minConeAngle": 18
+    },
+    "scope": {
+      "allowed": [
+        2,
+        4
+      ]
+    },
+    "handling": {
+      "swapTime": 220,
+      "weight": 1.3
+    }
   },
-
   "smg": {
     "name": "SMG",
     "fireMode": "auto",
-
-    "damage": 10,
-    "range": 20,
-
-    "fireRate": 70,
+    "damage": 11,
+    "range": 18,
+    "fireRate": 65,
     "reloadTime": 1600,
-
     "magSize": 35,
     "reserveMags": 4,
-
-    "recoil": 0.035,
-    "spread": 0.025,
-
-    "bulletSpeed": 0.28
+    "recoil": 0.03,
+    "spread": 0.022,
+    "bulletSpeed": 0.3,
+    "vision": {
+      "baseRadius": 5.0,
+      "coneRange": 10.0,
+      "coneAngle": 110,
+      "adsBonus": 1.1,
+      "minConeAngle": 30
+    },
+    "scope": {
+      "allowed": [
+        2
+      ]
+    },
+    "handling": {
+      "swapTime": 170,
+      "weight": 1.0
+    }
   },
-
   "shotgun": {
     "name": "Shotgun",
     "fireMode": "semi",
-
     "damage": 8,
-    "range": 12,
-
-    "fireRate": 800,
+    "range": 11,
+    "fireRate": 760,
     "reloadTime": 2200,
-
     "magSize": 6,
     "reserveMags": 3,
-
     "recoil": 0.08,
     "spread": 0.15,
-
     "pellets": 6,
-
-    "bulletSpeed": 0.22
+    "bulletSpeed": 0.23,
+    "vision": {
+      "baseRadius": 5.5,
+      "coneRange": 8.0,
+      "coneAngle": 120,
+      "adsBonus": 1.02,
+      "minConeAngle": 38
+    },
+    "scope": {
+      "allowed": []
+    },
+    "handling": {
+      "swapTime": 260,
+      "weight": 1.7
+    }
   },
-
   "sniper": {
     "name": "Sniper",
     "fireMode": "semi",
-
-    "damage": 80,
-    "range": 60,
-
+    "damage": 78,
+    "range": 55,
     "fireRate": 1200,
-    "reloadTime": 2500,
-
+    "reloadTime": 2600,
     "magSize": 5,
     "reserveMags": 3,
-
-    "recoil": 0.1,
-    "spread": 0.002,
-
-    "bulletSpeed": 0.5
+    "recoil": 0.09,
+    "spread": 0.003,
+    "bulletSpeed": 0.55,
+    "vision": {
+      "baseRadius": 5.0,
+      "coneRange": 24.0,
+      "coneAngle": 42,
+      "adsBonus": 1.55,
+      "minConeAngle": 8
+    },
+    "scope": {
+      "allowed": [
+        4,
+        8
+      ]
+    },
+    "handling": {
+      "swapTime": 320,
+      "weight": 2.2
+    }
   }
 }

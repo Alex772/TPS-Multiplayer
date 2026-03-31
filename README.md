@@ -1,14 +1,30 @@
-# 🎮 2D Multiplayer Shooter
+# Multi Tiro 2D
 
-Jogo multiplayer em tempo real usando Socket.IO.
+Projeto multiplayer 2D com servidor autoritativo em Node.js + Socket.IO.
 
-## 🚀 Tecnologias
-- Node.js
-- Socket.IO
-- JavaScript
+## O que foi preparado nesta versão
 
-## ▶️ Como rodar
+- estrutura mais consistente entre client e server
+- carregamento de mapas por `maps.json`
+- itens em `items.json`
+- armas em `weapons.json`
+- visão limitada por colisão e linha de visão
+- área curta ao redor do jogador
+- cone de visão orientado pela mira
+- ADS com scopes 2x, 4x e 8x
+- itens de pickup para armas, scopes, munição e kit médico
+- estados personalizados por jogador
+
+## Rodar
 
 ```bash
+cd server
 npm install
-npm run dev
+npm start
+```
+
+Abra:
+
+```txt
+http://localhost:3000
+```
