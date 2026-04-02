@@ -144,6 +144,16 @@ window.addEventListener('keydown', (e) => {
         socket.emit('pickup');
       }
       break;
+    case '4':
+      if (canUseCombatInput()) {
+        socket.emit('useMedkit');
+      }
+      break;
+    case '5':
+      if (canUseCombatInput()) {
+        socket.emit('useBandage');
+      }
+      break;
   }
 });
 

@@ -1,4 +1,12 @@
 {
+  "weapon_pistol": {
+    "id": "weapon_pistol",
+    "name": "Pistol",
+    "type": "weapon",
+    "weaponId": "pistol",
+    "slot": "secondary",
+    "color": "#D8BFD8"
+  },
   "weapon_rifle": {
     "id": "weapon_rifle",
     "name": "Rifle",
@@ -44,27 +52,56 @@
     "name": "Mira 2x",
     "type": "scope",
     "zoom": 2,
-    "color": "#7CFC00"
+    "color": "#7CFC00",
+    "zoomFactor": 1.12,
+    "rangeMultiplier": 1.18,
+    "angleMultiplier": 0.86,
+    "peripheralMultiplier": 0.82
   },
   "scope_4x": {
     "id": "scope_4x",
     "name": "Mira 4x",
     "type": "scope",
     "zoom": 4,
-    "color": "#00CED1"
+    "color": "#00CED1",
+    "zoomFactor": 1.28,
+    "rangeMultiplier": 1.42,
+    "angleMultiplier": 0.72,
+    "peripheralMultiplier": 0.45
   },
   "scope_8x": {
     "id": "scope_8x",
     "name": "Mira 8x",
     "type": "scope",
     "zoom": 8,
-    "color": "#FF69B4"
+    "color": "#FF69B4",
+    "zoomFactor": 1.45,
+    "rangeMultiplier": 1.7,
+    "angleMultiplier": 0.55,
+    "peripheralMultiplier": 0.18
   },
   "medkit": {
     "id": "medkit",
     "name": "Kit Medico",
     "type": "heal",
+    "healType": "medkit",
     "amount": 25,
     "color": "#FF6B6B"
+  },
+  "bandage": {
+    "id": "bandage",
+    "name": "Bandagem",
+    "type": "heal",
+    "healType": "bandage",
+    "amount": 12,
+    "color": "#F5DEB3"
+  },
+  "vest_light": {
+    "id": "vest_light",
+    "name": "Colete Leve",
+    "type": "vest",
+    "maxDurability": 65,
+    "absorption": 0.16,
+    "color": "#4DA3FF"
   }
 }

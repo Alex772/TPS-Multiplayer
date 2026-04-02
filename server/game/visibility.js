@@ -4,6 +4,7 @@ const { MAP_WIDTH, MAP_HEIGHT, layers } = require('./map/mapState');
 const { hasLineOfSight } = require('./map/mapCollision');
 const { angleDiff } = require('./utils/math');
 const { getWeapon } = require('./weapons');
+const { getScopeDefinition } = require('./items/itemRules');
 
 const visibilityCache = new Map();
 
@@ -11,37 +12,41 @@ const CACHE_TTL_MS = 90;
 const LOS_STEP = 0.28;
 const MAX_CACHE_SIZE = 120;
 
-function getScopeMultiplier(player, weapon) {
-  const zoom = Number(player.activeScope || 1);
-  const allowed = weapon?.scope?.allowed || [];
-  if (zoom <= 1 || !allowed.includes(zoom)) return 1;
-  return zoom;
+function getEquippedScope(player) {
+  const scopeId = player?.inventory?.scope;
+  return getScopeDefinition(scopeId) || null;
 }
 
 function getViewerVision(viewer) {
   const weaponState = getCurrentWeapon(viewer);
   const weapon = getWeapon(weaponState?.weaponId || 'pistol');
-  const scope = getScopeMultiplier(viewer, weapon);
+  const hipVision = weapon.vision.hip;
+  const adsVision = weapon.vision.ads;
+  const scope = getEquippedScope(viewer);
+  const canAds = !!scope && !!viewer.ads;
 
-  const baseRadius = weapon.vision.baseRadius;
-  const adsMultiplier = viewer.ads ? weapon.vision.adsBonus : 1;
-  const coneRange = weapon.vision.coneRange * adsMultiplier * (1 + (scope - 1) * 0.4);
-
-  const baseAngle = weapon.vision.coneAngle;
-  const minConeAngle = Number(weapon.vision.minConeAngle ?? 18);
-  const coneAngle = viewer.ads
-    ? Math.max(minConeAngle, baseAngle / Math.max(1, Math.sqrt(scope)))
-    : baseAngle;
-
-  const dimRadius = baseRadius + 1.0;
+  if (!canAds) {
+    return {
+      mode: 'hip',
+      baseRadius: hipVision.peripheralRadius,
+      dimRadius: hipVision.peripheralRadius + 1.0,
+      coneRange: hipVision.range,
+      coneAngle: hipVision.coneAngle,
+      angle: viewer.angle || 0,
+      zoomFactor: 1,
+      scopeZoom: 1,
+    };
+  }
 
   return {
-    baseRadius,
-    dimRadius,
-    coneRange,
-    coneAngle,
+    mode: 'ads',
+    baseRadius: Math.max(0, adsVision.peripheralRadius * Number(scope.peripheralMultiplier || 1)),
+    dimRadius: Math.max(0.2, adsVision.peripheralRadius * Number(scope.peripheralMultiplier || 1) + 0.5),
+    coneRange: adsVision.baseRange * Number(scope.rangeMultiplier || 1),
+    coneAngle: adsVision.baseConeAngle * Number(scope.angleMultiplier || 1),
     angle: viewer.angle || 0,
-    scope,
+    zoomFactor: Number(scope.zoomFactor || 1),
+    scopeZoom: Number(scope.zoom || 1),
   };
 }
 
@@ -108,7 +113,7 @@ function getVisibilityCacheKey(viewer) {
     vision.coneRange,
     vision.coneAngle,
     viewer.loadout?.current || 'none',
-    viewer.activeScope || 1,
+    vision.scopeZoom || 1,
   ].join('|');
 }
 
@@ -150,6 +155,7 @@ function sanitizePlayerForViewer(_viewer, target) {
     ads: target.ads,
     activeScope: target.activeScope,
     inventory: target.inventory,
+    action: target.action,
     espectador: target.espectador,
     loadout: {
       primary: target.loadout.primary,

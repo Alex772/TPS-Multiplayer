@@ -1,7 +1,7 @@
-const { getWeapon } = require('../weapons');
-const { players, createWeaponInstance } = require('./playerState');
+const { players, createWeaponInstance, hydratePlayerRuntimeState } = require('./playerState');
 const { getSpawn, getCurrentWeapon } = require('./playerQueries');
-const { ensurePlayerInventory } = require('../items/inventory');
+const { clearAction } = require('../actions');
+const { getScopeDefinition } = require('../items/itemRules');
 
 function createBasePlayer(id) {
   const spawn = getSpawn();
@@ -30,7 +30,13 @@ function createBasePlayer(id) {
     nextWeapon: null,
     espectador: false,
   };
-  ensurePlayerInventory(player);
+  player.inventory = {
+    scope: null,
+    meds: 0,
+    bandages: 0,
+    vest: null,
+  };
+  hydratePlayerRuntimeState(player);
   return player;
 }
 
@@ -46,6 +52,28 @@ function respawnPlayer(player) {
   player.hp = 100;
   player.espectador = false;
   player.hit = false;
+  player.ads = false;
+  player.activeScope = 1;
+  player.isSwitching = false;
+  player.switchEndTime = 0;
+  player.nextWeapon = null;
+  player.loadout = {
+    primary: createWeaponInstance('rifle'),
+    secondary: createWeaponInstance('pistol'),
+    current: 'primary',
+  };
+  player.inventory = {
+    scope: null,
+    meds: 0,
+    bandages: 0,
+    vest: null,
+  };
+  hydratePlayerRuntimeState(player);
+  player.action.type = null;
+  player.action.startedAt = 0;
+  player.action.endAt = 0;
+  player.action.locked = false;
+  player.action.meta = null;
 }
 
 function switchWeapon(player, target) {
@@ -57,8 +85,8 @@ function switchWeapon(player, target) {
 
   const currentWeaponState = getCurrentWeapon(player);
   if (!currentWeaponState) return;
-  const current = getWeapon(currentWeaponState.weaponId);
-  const next = getWeapon(player.loadout[target].weaponId);
+  const current = currentWeaponState.weaponDef;
+  const next = player.loadout[target].weaponDef;
   if (!current || !next) return;
 
   const swapTime = current.handling.swapTime + (current.handling.weight + next.handling.weight) * 100;
@@ -67,25 +95,45 @@ function switchWeapon(player, target) {
   player.nextWeapon = target;
   currentWeaponState.isReloading = false;
   currentWeaponState.reloadEndTime = 0;
+  if (player.action?.type === 'reload') {
+    clearAction(player);
+  }
+}
+
+function updateActiveScopeState(player) {
+  const scope = getScopeDefinition(player?.inventory?.scope);
+  player.activeScope = player?.ads && scope ? Number(scope.zoom || 1) : 1;
 }
 
 function setPlayerAim(player, dx, dy, ads = false) {
   if (!player) return;
   player.aim = { dx, dy };
   player.angle = Math.atan2(dy, dx);
-  player.ads = !!ads;
+  const hasScope = !!getScopeDefinition(player.inventory?.scope);
+  player.ads = !!ads && hasScope && player.hp > 0 && !player.espectador;
+  updateActiveScopeState(player);
 }
 
-function setPlayerScope(player, zoom) {
+function setPlayerScope(player, scopeId) {
   if (!player) return false;
-  const scopeZoom = Number(player.inventory?.scope || 0);
-  if (!scopeZoom || scopeZoom !== Number(zoom)) return false;
-  player.activeScope = scopeZoom;
+  const scope = getScopeDefinition(scopeId);
+  if (!scope) {
+    player.activeScope = 1;
+    return false;
+  }
+  player.inventory.scope = scope.id;
+  updateActiveScopeState(player);
   return true;
+}
+
+function togglePlayerScope(player) {
+  if (!player) return false;
+  updateActiveScopeState(player);
+  return !!player.inventory?.scope;
 }
 
 function removePlayer(id) {
   delete players[id];
 }
 
-module.exports = { addPlayer, removePlayer, respawnPlayer, switchWeapon, setPlayerAim, setPlayerScope };
+module.exports = { addPlayer, removePlayer, respawnPlayer, switchWeapon, setPlayerAim, setPlayerScope, togglePlayerScope, updateActiveScopeState };

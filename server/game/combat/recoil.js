@@ -10,7 +10,8 @@ function recoverWeaponRecoil(player) {
     const weapon = getWeapon(weaponState.weaponId);
     if (!weapon) return;
 
-    weaponState.recoilCurrent -= weapon.recoil.recovery;
+    // recovery é tratada como valor por segundo; convertendo para tick de ~60 FPS
+    weaponState.recoilCurrent -= weapon.recoil.recovery / 60;
 
     if (weaponState.recoilCurrent < 0) {
         weaponState.recoilCurrent = 0;

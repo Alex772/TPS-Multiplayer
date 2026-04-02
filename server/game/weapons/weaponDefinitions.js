@@ -4,6 +4,9 @@ function normalizeWeapon(id, w) {
   const recoilValue = Number(w.recoil ?? 0.01);
   const spreadValue = Number(w.spread ?? 0.01);
   const vision = w.vision || {};
+  const hip = vision.hip || {};
+  const ads = vision.ads || {};
+
   return {
     id,
     name: w.name || id,
@@ -20,22 +23,30 @@ function normalizeWeapon(id, w) {
     recoil: {
       perShot: recoilValue,
       max: Number(w.recoil?.max ?? recoilValue * 40),
-      recovery: Number(w.recoil?.recovery ?? recoilValue * 0.5),
+      recovery: Number(w.recoil?.recovery ?? recoilValue * 7.5),
     },
-    recoilSpreadMultiplier: Number(w.recoilSpreadMultiplier ?? spreadValue * 2),
+    recoilSpreadMultiplier: Number(w.recoilSpreadMultiplier ?? 1.15),
     handling: {
       weight: Number(w.handling?.weight ?? 1),
       swapTime: Number(w.handling?.swapTime ?? 200),
     },
     vision: {
-      baseRadius: Number(vision.baseRadius ?? 5.0),
-      coneRange: Number(vision.coneRange ?? 12.0),
-      coneAngle: Number(vision.coneAngle ?? 90),
-      adsBonus: Number(vision.adsBonus ?? 1.2),
-      minConeAngle: Number(vision.minConeAngle ?? 18),
+      hip: {
+        range: Number(hip.range ?? 12.0),
+        coneAngle: Number(hip.coneAngle ?? 90),
+        peripheralRadius: Number(hip.peripheralRadius ?? 5.0),
+      },
+      ads: {
+        baseRange: Number(ads.baseRange ?? 18.0),
+        baseConeAngle: Number(ads.baseConeAngle ?? 24),
+        peripheralRadius: Number(ads.peripheralRadius ?? 1.5),
+        spreadMultiplier: Number(ads.spreadMultiplier ?? 0.85),
+        recoilMultiplier: Number(ads.recoilMultiplier ?? 0.88),
+      },
     },
-    scope: {
-      allowed: Array.isArray(w.scope?.allowed) ? w.scope.allowed : [],
+    damageFalloff: {
+      startRatio: Number(w.damageFalloff?.startRatio ?? 0.45),
+      minMultiplier: Number(w.damageFalloff?.minMultiplier ?? 0.72),
     },
   };
 }

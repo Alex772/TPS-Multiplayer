@@ -1,12 +1,7 @@
-const { getItemDefinition } = require('./itemRules');
+const { getItemDefinition, getScopeDefinition } = require('./itemRules');
 const { getVisibleWorldItems, removeWorldItem, spawnDroppedItem } = require('./worldItems');
 const { createWeaponInstance } = require('../players');
-const { setScopeItem, addMeds } = require('./inventory');
-
-function canWeaponUseScope(weaponDef, zoom) {
-  const allowed = weaponDef?.scope?.allowed || [];
-  return allowed.includes(zoom);
-}
+const { setScopeItem, addMeds, addBandages, setVestItem } = require('./inventory');
 
 function isSameTile(player, item) {
   const playerTileX = Math.floor(player.x);
@@ -18,13 +13,15 @@ function isSameTile(player, item) {
 }
 
 function getCurrentSelectedWeaponSlot(player) {
-  const currentSlot = player?.loadout?.current;
+  const preferredSlot = player?.isSwitching && player?.nextWeapon
+    ? player.nextWeapon
+    : player?.loadout?.current;
 
-  if (currentSlot === 'secondary' && player?.loadout?.secondary) {
+  if (preferredSlot === 'secondary' && player?.loadout?.secondary) {
     return 'secondary';
   }
 
-  if (currentSlot === 'primary' && player?.loadout?.primary) {
+  if (preferredSlot === 'primary' && player?.loadout?.primary) {
     return 'primary';
   }
 
@@ -43,53 +40,59 @@ function dropWeaponIfExists(player, slot) {
     player.x + 0.18,
     player.y - 0.12,
     1,
-    12000
+    12000,
+    0,
+    {
+      ammoInMag: Number(weaponState.ammoInMag || 0),
+      magsLeft: Number(weaponState.magsLeft || 0),
+    }
   );
 }
 
-function applyWeaponPickup(player, definition) {
-  /**
-   * Regra nova:
-   * a arma do chão sempre substitui a arma do slot atualmente selecionado.
-   *
-   * Exemplo:
-   * - se o player está com primary selecionada, troca a primary
-   * - se o player está com secondary selecionada, troca a secondary
-   *
-   * Assim, para trocar a segunda arma, ele precisa estar com ela selecionada.
-   */
+function dropVestIfExists(player) {
+  const vest = player?.inventory?.vest;
+  if (!vest?.id || Number(vest.durability || 0) <= 0) return;
+
+  spawnDroppedItem(
+    vest.id,
+    player.x + 0.18,
+    player.y - 0.12,
+    1,
+    12000,
+    0,
+    {
+      durability: Number(vest.durability || 0),
+      maxDurability: Number(vest.maxDurability || 0),
+      absorption: Number(vest.absorption || 0),
+    }
+  );
+}
+
+function applyWeaponPickup(player, definition, item) {
   const slotToReplace = getCurrentSelectedWeaponSlot(player);
 
   dropWeaponIfExists(player, slotToReplace);
 
-  player.loadout[slotToReplace] = createWeaponInstance(definition.weaponId);
-  player.loadout.current = slotToReplace;
-
-  if (player.activeScope && player.activeScope > 1) {
-    const currentWeapon = player.loadout[player.loadout.current];
-    if (!canWeaponUseScope(currentWeapon?.weaponDef, player.activeScope)) {
-      player.activeScope = 1;
-    }
+  const nextWeaponState = createWeaponInstance(definition.weaponId);
+  const droppedState = item?.extraData || null;
+  if (droppedState) {
+    if (Number.isFinite(Number(droppedState.ammoInMag))) nextWeaponState.ammoInMag = Math.max(0, Number(droppedState.ammoInMag));
+    if (Number.isFinite(Number(droppedState.magsLeft))) nextWeaponState.magsLeft = Math.max(0, Number(droppedState.magsLeft));
   }
+
+  player.loadout[slotToReplace] = nextWeaponState;
+  player.loadout.current = slotToReplace;
 
   return true;
 }
 
 function applyScopePickup(player, definition) {
-  const zoom = Number(definition.zoom || 1);
-  const previous = setScopeItem(player, zoom);
+  const previous = setScopeItem(player, definition.id);
+  player.activeScope = player.ads ? Number(definition.zoom || 1) : 1;
 
-  const currentWeapon = player.loadout?.current
-    ? player.loadout[player.loadout.current]
-    : null;
-
-  player.activeScope = canWeaponUseScope(currentWeapon?.weaponDef, zoom)
-    ? zoom
-    : 1;
-
-  if (previous && previous > 1 && previous !== zoom) {
+  if (previous && previous !== definition.id) {
     spawnDroppedItem(
-      `scope_${previous}x`,
+      previous,
       player.x + 0.18,
       player.y - 0.12,
       1,
@@ -100,9 +103,42 @@ function applyScopePickup(player, definition) {
   return true;
 }
 
+function applyVestPickup(player, definition, item) {
+  const previousVest = setVestItem(player, {
+    id: definition.id,
+    maxDurability: Number(item?.extraData?.maxDurability ?? definition.maxDurability ?? 0),
+    durability: Number(item?.extraData?.durability ?? definition.maxDurability ?? 0),
+    absorption: Number(item?.extraData?.absorption ?? definition.absorption ?? 0),
+  });
+
+  if (previousVest?.id && Number(previousVest.durability || 0) > 0) {
+    spawnDroppedItem(
+      previousVest.id,
+      player.x + 0.18,
+      player.y - 0.12,
+      1,
+      12000,
+      0,
+      {
+        durability: Number(previousVest.durability || 0),
+        maxDurability: Number(previousVest.maxDurability || 0),
+        absorption: Number(previousVest.absorption || 0),
+      }
+    );
+  }
+
+  return true;
+}
+
 function applyHealPickup(player, definition) {
+  const healType = definition?.healType || definition?.id;
+
+  if (healType === 'bandage') {
+    addBandages(player, 1);
+    return true;
+  }
+
   addMeds(player, 1);
-  player.hp = Math.min(100, player.hp + Number(definition.amount || 0));
   return true;
 }
 
@@ -123,10 +159,13 @@ function applyItemToPlayer(player, item) {
 
   switch (definition.type) {
     case 'weapon':
-      return applyWeaponPickup(player, definition);
+      return applyWeaponPickup(player, definition, item);
 
     case 'scope':
       return applyScopePickup(player, definition);
+
+    case 'vest':
+      return applyVestPickup(player, definition, item);
 
     case 'heal':
       return applyHealPickup(player, definition);

@@ -8,6 +8,7 @@ const { updatePlayerMovement } = require('../movement/playerMovement');
 const { tryHitPlayers } = require('../combat/hits');
 const { isBulletBlocked } = require('../map');
 const { buildStateForPlayer } = require('../visibility');
+const { processMedkit } = require('../combat/medkit');
 
 const TICK = 1000 / 60;
 
@@ -55,6 +56,7 @@ function gameLoop(io) {
 
       processWeaponSwitch(p, now);
       processWeaponReload(p, now);
+      processMedkit(p, now);
       recoverWeaponRecoil(p);
 
       if (now - (p.lastInput || 0) > 120) {

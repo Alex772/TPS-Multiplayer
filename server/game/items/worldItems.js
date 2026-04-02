@@ -13,6 +13,9 @@ function initWorldItems() {
     amount: Number(entry.amount || 1),
     respawnMs: Number(entry.respawnMs || 15000),
     hiddenUntil: 0,
+    respawns: false,
+    source: 'map',
+    extraData: null,
   }));
 }
 
@@ -25,14 +28,20 @@ function getVisibleWorldItems(now = Date.now()) {
 }
 
 function removeWorldItem(worldId, now = Date.now()) {
-  const item = worldItems.find((entry) => entry.worldId === worldId);
-  if (!item) return false;
+  const index = worldItems.findIndex((entry) => entry.worldId === worldId);
+  if (index === -1) return false;
 
-  item.hiddenUntil = now + item.respawnMs;
+  const item = worldItems[index];
+  if (item.respawns) {
+    item.hiddenUntil = now + item.respawnMs;
+    return true;
+  }
+
+  worldItems.splice(index, 1);
   return true;
 }
 
-function spawnDroppedItem(itemId, x, y, amount = 1, respawnMs = 20000, pickupDelayMs = 0) {
+function spawnDroppedItem(itemId, x, y, amount = 1, respawnMs = 20000, pickupDelayMs = 0, extraData = null) {
   if (!getItemDefinition(itemId)) return null;
 
   const now = Date.now();
@@ -45,6 +54,9 @@ function spawnDroppedItem(itemId, x, y, amount = 1, respawnMs = 20000, pickupDel
     amount: Number(amount),
     respawnMs: Number(respawnMs),
     hiddenUntil: now + Number(pickupDelayMs || 0),
+    respawns: false,
+    source: 'drop',
+    extraData: extraData && typeof extraData === 'object' ? { ...extraData } : null,
   };
 
   worldItems.push(entry);

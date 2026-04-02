@@ -1,4 +1,5 @@
 const { getWeapon } = require('../weapons');
+const { ensureActionState } = require('../actions');
 
 const players = {};
 
@@ -15,4 +16,10 @@ function createWeaponInstance(weaponId) {
   };
 }
 
-module.exports = { players, createWeaponInstance };
+function hydratePlayerRuntimeState(player) {
+  if (!player) return player;
+  ensureActionState(player);
+  return player;
+}
+
+module.exports = { players, createWeaponInstance, hydratePlayerRuntimeState };

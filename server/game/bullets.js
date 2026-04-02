@@ -5,17 +5,37 @@ const { nextId } = require('./utils/ids');
 
 let bullets = [];
 
-function clampRecoil(weaponState, weapon) {
-  weaponState.recoilCurrent += weapon.recoil.perShot;
+function getAdsSpreadMultiplier(player, weapon) {
+  if (!player?.ads || !player?.inventory?.scope) return 1;
+  return Math.max(0.35, Number(weapon?.vision?.ads?.spreadMultiplier ?? 0.85));
+}
+
+function getAdsRecoilMultiplier(player, weapon) {
+  if (!player?.ads || !player?.inventory?.scope) return 1;
+  return Math.max(0.35, Number(weapon?.vision?.ads?.recoilMultiplier ?? 0.88));
+}
+
+function clampRecoil(player, weaponState, weapon) {
+  const recoilStep = weapon.recoil.perShot * getAdsRecoilMultiplier(player, weapon);
+  weaponState.recoilCurrent += recoilStep;
   if (weaponState.recoilCurrent > weapon.recoil.max) weaponState.recoilCurrent = weapon.recoil.max;
 }
 
-function applySpread(baseDx, baseDy, weapon, recoilCurrent) {
-  let dx = baseDx + (Math.random() - 0.5) * weapon.spread + (Math.random() - 0.5) * recoilCurrent * weapon.recoilSpreadMultiplier;
-  let dy = baseDy + (Math.random() - 0.5) * weapon.spread + (Math.random() - 0.5) * recoilCurrent * weapon.recoilSpreadMultiplier;
-  const len = Math.hypot(dx, dy);
-  if (len <= 0) return null;
-  return { dx: dx / len, dy: dy / len };
+function applySpread(baseDx, baseDy, weapon, recoilCurrent, spreadMultiplier = 1) {
+  const baseAngle = Math.atan2(baseDy, baseDx);
+  const effectiveSpread = weapon.spread * spreadMultiplier;
+
+  // spread base = imprecisão natural da arma
+  const spreadOffset = (Math.random() - 0.5) * effectiveSpread;
+
+  // recoil acumulado = abre mais o cone ao segurar o disparo
+  const recoilOffset = (Math.random() - 0.5) * 2 * recoilCurrent * weapon.recoilSpreadMultiplier;
+
+  const finalAngle = baseAngle + spreadOffset + recoilOffset;
+  return {
+    dx: Math.cos(finalAngle),
+    dy: Math.sin(finalAngle),
+  };
 }
 
 function createBullet({ owner, x, y, dx, dy, weapon, snapshotPlayers, shotTime }) {
@@ -26,6 +46,8 @@ function createBullet({ owner, x, y, dx, dy, weapon, snapshotPlayers, shotTime }
     distanceTraveled: 0,
     owner,
     damage: weapon.damage,
+    weaponId: weapon.id,
+    damageFalloff: weapon.damageFalloff || null,
     snapshotPlayers,
     shotTime,
   };
@@ -58,13 +80,14 @@ function handleShoot(id, data) {
   const snapshot = getSnapshotAt(realShotTime);
   const snapshotPlayers = snapshot?.players || players;
 
-  clampRecoil(weaponState, weapon);
+  clampRecoil(p, weaponState, weapon);
   p.lastShot = now;
   weaponState.ammoInMag--;
 
   const pelletCount = Math.max(1, Number(weapon.pellets) || 1);
+  const spreadMultiplier = getAdsSpreadMultiplier(p, weapon);
   for (let i = 0; i < pelletCount; i++) {
-    const spreadResult = applySpread(Number(data.dx), Number(data.dy), weapon, weaponState.recoilCurrent);
+    const spreadResult = applySpread(Number(data.dx), Number(data.dy), weapon, weaponState.recoilCurrent, spreadMultiplier);
     if (!spreadResult) continue;
     bullets.push(createBullet({ owner: id, x: p.x, y: p.y, dx: spreadResult.dx, dy: spreadResult.dy, weapon, snapshotPlayers, shotTime: realShotTime }));
   }

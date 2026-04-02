@@ -10,6 +10,9 @@ const { mapData } = require('./game/map/mapState');
 const { getWeapon } = require('./game/weapons');
 const { normalize } = require('./game/utils/math');
 const { tryPickupItemOnPlayerTile } = require('./game/items/pickups');
+const { beginUseMedkit, beginUseBandage } = require('./game/combat/medkit');
+const { isActionLocked } = require('./game/actions');
+const { beginWeaponReload } = require('./game/combat/reloads');
 
 const app = express();
 app.use(express.static(path.resolve(__dirname, '../client')));
@@ -56,6 +59,7 @@ function handleAim(socket, data) {
 function handleShootRequest(socket, data) {
   const player = getPlayerOrNull(socket.id);
   if (!player || player.hp <= 0 || player.espectador) return;
+  if (isActionLocked(player)) return;
 
   const dir = normalize(Number(data?.dx), Number(data?.dy));
   if (dir.len === 0) return;
@@ -72,38 +76,38 @@ function handleShootRequest(socket, data) {
 function handleReloadRequest(socket) {
   const player = getPlayerOrNull(socket.id);
   if (!player || player.hp <= 0 || player.espectador) return;
-  if (player.isSwitching) return;
-
-  const weaponState = getCurrentWeapon(player);
-  if (!weaponState) return;
-
-  const weapon = getWeapon(weaponState.weaponId);
-  if (!weapon) return;
-
-  if (
-    weaponState.isReloading ||
-    weaponState.magsLeft <= 0 ||
-    weaponState.ammoInMag >= weapon.magSize
-  ) {
-    return;
-  }
-
-  weaponState.isReloading = true;
-  weaponState.reloadEndTime = Date.now() + weapon.reloadTime;
+  if (player.isSwitching || isActionLocked(player)) return;
+  beginWeaponReload(player, Date.now());
 }
 
 function handleSwitchWeaponRequest(socket, data) {
   const player = getPlayerOrNull(socket.id);
   if (!player || player.hp <= 0 || player.espectador) return;
+  if (isActionLocked(player)) return;
   switchWeapon(player, data?.slot);
 }
 
 function handlePickupRequest(socket) {
   const player = getPlayerOrNull(socket.id);
   if (!player || player.hp <= 0 || player.espectador) return;
+  if (isActionLocked(player)) return;
 
   tryPickupItemOnPlayerTile(player, Date.now());
 }
+
+function handleUseMedkitRequest(socket) {
+  const player = getPlayerOrNull(socket.id);
+  if (!player || player.hp <= 0 || player.espectador) return;
+  beginUseMedkit(player, Date.now());
+}
+
+
+function handleUseBandageRequest(socket) {
+  const player = getPlayerOrNull(socket.id);
+  if (!player || player.hp <= 0 || player.espectador) return;
+  beginUseBandage(player, Date.now());
+}
+
 
 function sendInit(socket) {
   socket.emit('init', {
@@ -130,6 +134,8 @@ io.on('connection', (socket) => {
   socket.on('reload', () => handleReloadRequest(socket));
   socket.on('switchWeapon', (data) => handleSwitchWeaponRequest(socket, data));
   socket.on('pickup', () => handlePickupRequest(socket));
+  socket.on('useMedkit', () => handleUseMedkitRequest(socket));
+  socket.on('useBandage', () => handleUseBandageRequest(socket));
   socket.on('pingCheck', (time) => socket.emit('pongCheck', time));
 
   socket.on('disconnect', () => {

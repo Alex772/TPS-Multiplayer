@@ -30,7 +30,9 @@ function formatItemName(itemId) {
     ammo_light: 'Munição leve',
     ammo_shells: 'Cartuchos',
     ammo_sniper: 'Munição de sniper',
-    medkit: 'Medkit'
+    medkit: 'Medkit',
+    bandage: 'Bandagem',
+    vest_light: 'Colete leve'
   };
 
   return names[itemId] || itemId || 'Item';
@@ -77,13 +79,31 @@ function getItemOnPlayerTile(player, items) {
   return items.find((item) => isSameTile(player, item)) || null;
 }
 
+function getActionProgress(action) {
+  if (!action?.locked) return 0;
+  const startedAt = Number(action.startedAt || 0);
+  const endAt = Number(action.endAt || 0);
+  const total = Math.max(1, endAt - startedAt);
+  const elapsed = Math.max(0, Date.now() - startedAt);
+  return Math.max(0, Math.min(1, elapsed / total));
+}
+
+function formatActionLabel(action) {
+  const labels = {
+    reload: 'Recarregando',
+    medkit: 'Usando medkit',
+    bandage: 'Usando bandagem'
+  };
+  return labels[action?.type] || action?.type || 'Ação';
+}
+
 export function render(state, myId) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const me = state.players?.[myId];
   if (!me || !state.map) return;
 
-  const localAds = myId === window.myId ? !!(window.localInputState?.ads ?? me.ads) : !!me.ads;
-  const zoom = localAds ? Math.max(1, me.activeScope || 1) : 1;
+  const localAds = myId === window.myId ? (!!window.localInputState?.ads && !!me.inventory?.scope && me.hp > 0 && !me.espectador) : !!me.ads;
+  const zoom = localAds ? Math.max(1, state.vision?.zoomFactor || 1) : 1;
   const tileSize = TILE_SIZE_BASE * Math.min(2.4, 1 + (zoom - 1) * 0.18);
   const camX = me.x;
   const camY = me.y;
@@ -138,7 +158,9 @@ export function render(state, myId) {
       ammo_light: '#F0E68C',
       ammo_shells: '#DEB887',
       ammo_sniper: '#B0C4DE',
-      medkit: '#FF6B6B'
+      medkit: '#FF6B6B',
+      bandage: '#F5DEB3',
+      vest_light: '#4DA3FF'
     };
 
     ctx.fillStyle = colors[item.id] || '#fff';
@@ -226,24 +248,45 @@ export function render(state, myId) {
   ctx.fillStyle = '#fff';
   ctx.font = '18px Arial';
   const currentWeapon = getCurrentWeaponState(me);
+  const vest = me.inventory?.vest || null;
+  const vestText = vest ? `${Math.ceil(vest.durability)}/${Math.ceil(vest.maxDurability)}` : 'Sem colete';
   ctx.fillText(`Arma: ${formatWeaponName(currentWeapon?.weaponId)}`, 24, canvas.height - 108);
   ctx.fillText(`Munição: ${currentWeapon?.ammoInMag ?? 0}/${currentWeapon?.magsLeft ?? 0}`, 24, canvas.height - 82);
-  const equippedScope = me.inventory?.scope ? `${me.inventory.scope}x` : 'Sem mira';
-  ctx.fillText(`Scope ativa: ${me.activeScope > 1 ? `${me.activeScope}x` : '1x (ferro)'}`, 24, canvas.height - 56);
-  ctx.fillText(`Slot de mira: ${equippedScope}`, 24, canvas.height - 30);
+  const scopeDef = me.inventory?.scope ? formatItemName(me.inventory.scope) : 'Sem mira';
+  const adsMode = me.ads && me.inventory?.scope ? `${scopeDef}` : 'Sem ADS ativo';
+  ctx.fillText(`ADS atual: ${adsMode}`, 24, canvas.height - 56);
+  ctx.fillText(`Mira equipada: ${scopeDef}`, 24, canvas.height - 30);
   ctx.fillText(`HP: ${Math.max(0, me.hp ?? 0)}`, 220, canvas.height - 108);
-  ctx.fillText(`Ping: ${Math.round(window.myPing || 0)}ms`, 220, canvas.height - 82);
-  ctx.fillText(`ADS: ${localAds ? 'Ligado' : 'Desligado'}`, 220, canvas.height - 56);
-  ctx.fillText(`Mapa: ${window.mapMeta?.name || '---'}`, 220, canvas.height - 30);
+  ctx.fillText(`Medkits: ${me.inventory?.meds ?? 0}`, 220, canvas.height - 82);
+  ctx.fillText(`Bandagens: ${me.inventory?.bandages ?? 0}`, 220, canvas.height - 56);
+  ctx.fillText(`Colete: ${vestText}`, 220, canvas.height - 30);
+  ctx.fillText(`Ping: ${Math.round(window.myPing || 0)}ms`, 220, canvas.height - 4);
+  ctx.fillText(`ADS: ${localAds ? 'Ligado' : 'Desligado'}`, 220, canvas.height - 152);
+  ctx.fillText(`Mapa: ${window.mapMeta?.name || '---'}`, 24, canvas.height - 4);
+  if (me.action?.locked) {
+    const actionProgress = getActionProgress(me.action);
+    const barX = 24;
+    const barY = canvas.height - 175;
+    const barW = 180;
+    const barH = 10;
+
+    ctx.fillText(`Ação: ${formatActionLabel(me.action)}`, 24, canvas.height - 152);
+    ctx.fillStyle = 'rgba(255,255,255,0.16)';
+    ctx.fillRect(barX, barY, barW, barH);
+    ctx.fillStyle = '#6ee7ff';
+    ctx.fillRect(barX, barY, barW * actionProgress, barH);
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.strokeRect(barX, barY, barW, barH);
+  }
 
   ctx.fillStyle = 'rgba(0,0,0,0.50)';
   ctx.fillRect(canvas.width - 350, canvas.height - 130, 330, 110);
   ctx.fillStyle = '#fff';
   ctx.font = '15px Arial';
   ctx.fillText('Q / Scroll = trocar arma', canvas.width - 336, canvas.height - 94);
-  ctx.fillText('R = recarregar | botão direito = ADS', canvas.width - 336, canvas.height - 68);
+  ctx.fillText('R = recarregar | botão direito = ADS (exige mira)', canvas.width - 336, canvas.height - 68);
   ctx.fillText('E = pegar item no tile atual', canvas.width - 336, canvas.height - 42);
-  ctx.fillText('Troca de arma usa o slot selecionado', canvas.width - 336, canvas.height - 16);
+  ctx.fillText('4 = usar medkit | 5 = bandagem', canvas.width - 336, canvas.height - 16);
 
   if (me.hp <= 0 || me.espectador) {
     ctx.fillStyle = 'rgba(0,0,0,0.55)';

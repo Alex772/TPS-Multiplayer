@@ -1,5 +1,8 @@
 const { players, respawnPlayer } = require('../players');
 const { dropPlayerItems } = require('../items/itemDrops');
+const { clearAction } = require('../actions');
+const { applyVestDamage } = require('../items/inventory');
+const { getBulletDamageAtDistance } = require('./damageFalloff');
 
 const HIT_RADIUS = 0.35;
 const RESPAWN_MS = 3000;
@@ -16,15 +19,24 @@ function tryHitPlayers(bullet, removeBullet) {
     const dist = Math.hypot(snapshotPlayer.x - bullet.x, snapshotPlayer.y - bullet.y);
     if (dist >= HIT_RADIUS) continue;
 
-    applyDamage(realPlayer, bullet.owner, bullet.damage);
+    applyDamage(realPlayer, bullet.owner, getBulletDamageAtDistance(bullet));
     removeBullet();
     return true;
   }
   return false;
 }
 
+function cancelInterruptedActions(target) {
+  if (!target?.action?.locked) return;
+  if (target.action.type === 'medkit' || target.action.type === 'bandage') {
+    clearAction(target);
+  }
+}
+
 function applyDamage(target, ownerId, damage) {
-  target.hp -= damage;
+  cancelInterruptedActions(target);
+  const result = applyVestDamage(target, damage);
+  target.hp -= result.healthDamage;
   target.lastHitAt = Date.now();
   const owner = players[ownerId];
   if (owner) owner.hit = true;
@@ -32,6 +44,8 @@ function applyDamage(target, ownerId, damage) {
   if (target.hp > 0) return;
   target.hp = 0;
   target.espectador = true;
+  target.ads = false;
+  clearAction(target);
   dropPlayerItems(target);
   setTimeout(() => {
     if (!players[target.id]) return;
